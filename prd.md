@@ -1,8 +1,8 @@
 Phase 1: Project Scaffolding & Environment
 - [x] Initialize Vite + React + TypeScript project with a structure compatible with Chrome Extensions.
 - [x] Configure tailwind.config.js and install shadcn/ui CLI.
-- [ ] Install essential shadcn components: Button, Card, Input, Progress, Checkbox, Tabs, Dialog, ScrollArea, and Toast.
-- [ ] Create a manifest.json (Manifest V3) with permissions for: alarms, storage, notifications, and activeTab.
+- [x] Install essential shadcn components: Button, Card, Input, Progress, Checkbox, Tabs, Dialog, ScrollArea, and Toast.
+- [x] Create a manifest.json (Manifest V3) with permissions for: alarms, storage, notifications, and activeTab.
 Phase 2: The Core Engine (Background Script)
 - [ ] Create src/background.ts to host the primary timer logic using chrome.alarms.
 - [ ] Implement chrome.storage.local to persist the timer state (time remaining, isRunning, startTime).

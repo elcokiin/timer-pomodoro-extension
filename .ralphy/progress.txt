@@ -26,3 +26,16 @@
 - Created missing source directories (`src/background/`, `src/components/`, `src/hooks/`, `src/types/`) with `.gitkeep` files
 - Wrote 12 new tests validating Tailwind + shadcn/ui configuration, all passing (24 total tests)
 - Linting passes cleanly
+
+## 2026-02-15: Phase 1 - Task 4: Create manifest.json (Manifest V3)
+- Created `public/manifest.json` with Manifest V3 configuration:
+  - `manifest_version: 3`
+  - Permissions: `alarms`, `storage`, `notifications`, `activeTab`
+  - Action: `default_popup` pointing to `index.html`, with `default_title`
+  - Background: service worker with `type: "module"` for ES module support
+  - Icons: 16x16, 48x48, 128x128 PNG placeholder icons
+- Created `public/icons/` directory with placeholder PNG icons (icon-16.png, icon-48.png, icon-128.png)
+- Also marked Phase 1 - Task 3 (shadcn components) as complete in PRD (was already implemented in prior session)
+- Wrote 20 new tests validating manifest.json structure, permissions, action, background, and icons (75 total tests)
+- All 75 tests passing
+- Linting passes cleanly (0 errors, 2 pre-existing warnings from shadcn components)
