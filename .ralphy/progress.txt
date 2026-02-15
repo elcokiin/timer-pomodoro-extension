@@ -13,3 +13,16 @@
 - Updated `package.json` name to `pomodoro-task-extension`, added `test` and `test:watch` scripts
 - Wrote 12 tests (App component rendering + project structure validation), all passing
 - Linting passes cleanly
+
+## 2026-02-15: Phase 1 - Task 2: Configure Tailwind CSS and install shadcn/ui CLI
+- Installed Tailwind CSS v4 (`tailwindcss`, `@tailwindcss/vite`) as dev dependencies
+- Configured `@tailwindcss/vite` plugin in `vite.config.ts` for Tailwind v4 CSS-first approach
+- Installed shadcn/ui core dependencies: `class-variance-authority`, `clsx`, `tailwind-merge`, `lucide-react`, `tw-animate-css`, `shadcn`
+- Ran `npx shadcn@latest init --defaults` to scaffold shadcn/ui configuration:
+  - Generated `components.json` with New York style, Vite framework, Tailwind v4
+  - Updated `src/index.css` with `@import "tailwindcss"`, `@import "tw-animate-css"`, `@import "shadcn/tailwind.css"`, full CSS variable theming (oklch colors), and `@theme inline` block
+- Created `src/lib/utils.ts` with the `cn()` utility function (clsx + tailwind-merge)
+- Added `@/*` path alias in `tsconfig.app.json`, `tsconfig.json`, and `vite.config.ts` for shadcn imports
+- Created missing source directories (`src/background/`, `src/components/`, `src/hooks/`, `src/types/`) with `.gitkeep` files
+- Wrote 12 new tests validating Tailwind + shadcn/ui configuration, all passing (24 total tests)
+- Linting passes cleanly
