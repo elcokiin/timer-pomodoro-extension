@@ -41,6 +41,7 @@ const {
   pauseTimer,
   resetTimer,
   handleAlarm,
+  restoreTimerState,
 } = await import('../background/index')
 
 // Capture addListener call info immediately after import, before any
@@ -462,6 +463,194 @@ describe('Background Script – Timer Logic (chrome.alarms)', () => {
       expect(updatedState.timeLeft).toBe(8 * 60)
       // startTime should be reset to now
       expect(updatedState.startTime).not.toBeNull()
+    })
+  })
+
+  // ── restoreTimerState ──────────────────────────────────────────────
+
+  describe('restoreTimerState()', () => {
+    it('exports restoreTimerState function', () => {
+      expect(typeof restoreTimerState).toBe('function')
+    })
+
+    it('returns default state when storage is empty', async () => {
+      const result = await restoreTimerState()
+      expect(result).toEqual(DEFAULT_TIMER_STATE)
+    })
+
+    it('returns state unchanged when timer is not running', async () => {
+      const stoppedState: TimerStorageState = {
+        ...DEFAULT_TIMER_STATE,
+        timeLeft: 10 * 60,
+        isRunning: false,
+        startTime: null,
+      }
+      storageData['timerState'] = stoppedState
+
+      const result = await restoreTimerState()
+      expect(result).toEqual(stoppedState)
+      expect(mockAlarms.create).not.toHaveBeenCalled()
+    })
+
+    it('returns state unchanged when startTime is null but isRunning', async () => {
+      const oddState: TimerStorageState = {
+        ...DEFAULT_TIMER_STATE,
+        isRunning: true,
+        startTime: null,
+      }
+      storageData['timerState'] = oddState
+
+      const result = await restoreTimerState()
+      expect(result).toEqual(oddState)
+      expect(mockAlarms.create).not.toHaveBeenCalled()
+    })
+
+    it('finishes timer if remaining time has elapsed while inactive', async () => {
+      storageData['timerState'] = {
+        ...DEFAULT_TIMER_STATE,
+        isRunning: true,
+        timeLeft: 60,
+        startTime: Date.now() - 120 * 1000, // started 2 min ago, only 1 min left
+      }
+
+      const result = await restoreTimerState()
+      expect(result.isRunning).toBe(false)
+      expect(result.timeLeft).toBe(0)
+      expect(result.startTime).toBeNull()
+    })
+
+    it('persists finished state to storage when timer expired while inactive', async () => {
+      storageData['timerState'] = {
+        ...DEFAULT_TIMER_STATE,
+        isRunning: true,
+        timeLeft: 30,
+        startTime: Date.now() - 60 * 1000,
+      }
+
+      await restoreTimerState()
+
+      const savedState = storageData['timerState'] as TimerStorageState
+      expect(savedState.isRunning).toBe(false)
+      expect(savedState.timeLeft).toBe(0)
+    })
+
+    it('does not create alarm when timer expired while inactive', async () => {
+      storageData['timerState'] = {
+        ...DEFAULT_TIMER_STATE,
+        isRunning: true,
+        timeLeft: 10,
+        startTime: Date.now() - 60 * 1000,
+      }
+
+      await restoreTimerState()
+      expect(mockAlarms.create).not.toHaveBeenCalled()
+    })
+
+    it('re-creates alarm when timer is still running with remaining time', async () => {
+      storageData['timerState'] = {
+        ...DEFAULT_TIMER_STATE,
+        isRunning: true,
+        timeLeft: 10 * 60,
+        startTime: Date.now() - 2 * 60 * 1000, // 2 minutes ago
+      }
+
+      await restoreTimerState()
+      expect(mockAlarms.create).toHaveBeenCalledWith(
+        'pomodoro-timer',
+        expect.objectContaining({
+          periodInMinutes: 1,
+        })
+      )
+    })
+
+    it('updates persisted state with recalculated timeLeft', async () => {
+      storageData['timerState'] = {
+        ...DEFAULT_TIMER_STATE,
+        isRunning: true,
+        timeLeft: 10 * 60,
+        startTime: Date.now() - 2 * 60 * 1000, // 2 minutes ago
+      }
+
+      const result = await restoreTimerState()
+      // Should be approximately 8 minutes
+      expect(result.timeLeft).toBe(8 * 60)
+      expect(result.isRunning).toBe(true)
+    })
+
+    it('resets startTime to current timestamp on restore', async () => {
+      storageData['timerState'] = {
+        ...DEFAULT_TIMER_STATE,
+        isRunning: true,
+        timeLeft: 10 * 60,
+        startTime: Date.now() - 5 * 60 * 1000, // old startTime
+      }
+
+      const before = Date.now()
+      const result = await restoreTimerState()
+      const after = Date.now()
+
+      expect(result.startTime).toBeGreaterThanOrEqual(before)
+      expect(result.startTime).toBeLessThanOrEqual(after)
+    })
+
+    it('sets alarm delay based on remaining time', async () => {
+      storageData['timerState'] = {
+        ...DEFAULT_TIMER_STATE,
+        isRunning: true,
+        timeLeft: 10 * 60,
+        startTime: Date.now() - 2 * 60 * 1000, // 8 minutes remaining
+      }
+
+      await restoreTimerState()
+      expect(mockAlarms.create).toHaveBeenCalledWith(
+        'pomodoro-timer',
+        expect.objectContaining({
+          delayInMinutes: 8, // 8 minutes remaining
+        })
+      )
+    })
+
+    it('persists restored state to storage', async () => {
+      const originalStartTime = Date.now() - 3 * 60 * 1000
+      storageData['timerState'] = {
+        ...DEFAULT_TIMER_STATE,
+        isRunning: true,
+        timeLeft: 10 * 60,
+        startTime: originalStartTime,
+      }
+
+      await restoreTimerState()
+
+      const savedState = storageData['timerState'] as TimerStorageState
+      expect(savedState.isRunning).toBe(true)
+      expect(savedState.timeLeft).toBe(7 * 60) // 10 min - 3 min elapsed
+      expect(savedState.startTime).not.toBe(originalStartTime) // should be reset
+    })
+
+    it('preserves timer mode during restore', async () => {
+      storageData['timerState'] = {
+        ...DEFAULT_TIMER_STATE,
+        mode: 'break',
+        isRunning: true,
+        timeLeft: 5 * 60,
+        startTime: Date.now() - 60 * 1000, // 1 minute ago
+      }
+
+      const result = await restoreTimerState()
+      expect(result.mode).toBe('break')
+    })
+
+    it('preserves duration during restore', async () => {
+      storageData['timerState'] = {
+        ...DEFAULT_TIMER_STATE,
+        duration: 50 * 60,
+        isRunning: true,
+        timeLeft: 40 * 60,
+        startTime: Date.now() - 5 * 60 * 1000,
+      }
+
+      const result = await restoreTimerState()
+      expect(result.duration).toBe(50 * 60)
     })
   })
 

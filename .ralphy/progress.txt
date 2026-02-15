@@ -65,3 +65,20 @@
   - Listener registration (2 tests: addListener called, function passed)
 - All 122 tests passing (47 new + 75 existing)
 - Linting passes cleanly (0 errors, 2 pre-existing warnings from shadcn components)
+
+## 2026-02-15: Phase 2 - Task 2: Implement chrome.storage.local to persist timer state
+- Added `restoreTimerState()` function to `src/background/index.ts`:
+  - Runs automatically on service worker startup to ensure persistence across Chrome service worker restarts
+  - Reads persisted state from `chrome.storage.local` and checks if timer was running
+  - If timer expired while service worker was inactive: marks timer as finished (isRunning=false, timeLeft=0), persists the finished state
+  - If timer still has remaining time: recalculates `timeLeft` based on elapsed time since `startTime`, resets `startTime` to `Date.now()`, re-creates the chrome alarm with correct delay, persists the restored state
+  - Preserves `mode` and `duration` during restoration
+  - No-ops gracefully when timer is not running or `startTime` is null
+- Called `restoreTimerState()` at module level after listener registration to ensure persistence on every service worker restart
+- Wrote 14 new tests covering `restoreTimerState()`:
+  - Export existence, default state return, not-running state passthrough, null startTime guard
+  - Timer expired while inactive: finishes timer, persists finished state, does not create alarm
+  - Timer still running: re-creates alarm, recalculates timeLeft, resets startTime, sets correct alarm delay, persists restored state
+  - Preserves mode and duration during restore
+- All 136 tests passing (14 new + 122 existing)
+- Linting passes cleanly (0 errors, 2 pre-existing warnings from shadcn components)

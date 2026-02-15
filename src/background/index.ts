@@ -172,6 +172,57 @@ export async function handleAlarm(
   }
 }
 
+/**
+ * Restore timer state on service worker startup.
+ *
+ * Chrome can terminate the background service worker at any time.
+ * When it restarts, we need to check persisted state and re-create
+ * the alarm if the timer was running. This ensures the timer continues
+ * counting down even after the service worker is killed and restarted.
+ */
+export async function restoreTimerState(): Promise<TimerStorageState> {
+  const state = await getTimerState()
+
+  if (!state.isRunning || state.startTime === null) {
+    return state
+  }
+
+  const remaining = computeTimeLeft(state)
+
+  if (remaining <= 0) {
+    // Timer finished while the service worker was inactive
+    const finishedState: TimerStorageState = {
+      ...state,
+      isRunning: false,
+      timeLeft: 0,
+      startTime: null,
+    }
+    await setTimerState(finishedState)
+    return finishedState
+  }
+
+  // Update persisted timeLeft and reset startTime to now,
+  // then re-create the alarm so the timer keeps running.
+  const restoredState: TimerStorageState = {
+    ...state,
+    timeLeft: remaining,
+    startTime: Date.now(),
+  }
+  await setTimerState(restoredState)
+
+  const delayInMinutes = Math.max(remaining / 60, 0.08)
+  await chrome.alarms.create(ALARM_NAME, {
+    delayInMinutes,
+    periodInMinutes: 1,
+  })
+
+  return restoredState
+}
+
 // ── Register listeners ─────────────────────────────────────────────
 
 chrome.alarms.onAlarm.addListener(handleAlarm)
+
+// Restore timer state when the service worker starts up.
+// This ensures persistence across service worker restarts.
+restoreTimerState()
