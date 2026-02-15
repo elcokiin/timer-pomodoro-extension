@@ -24,10 +24,15 @@ const mockAlarms = {
   },
 }
 
+const mockNotifications = {
+  create: vi.fn(async () => 'pomodoro-timer-finished'),
+}
+
 // Install global chrome mock before module import
 vi.stubGlobal('chrome', {
   storage: mockStorage,
   alarms: mockAlarms,
+  notifications: mockNotifications,
 })
 
 // ── Import module under test (after chrome mock is set up) ──────────
@@ -42,6 +47,7 @@ const {
   resetTimer,
   handleAlarm,
   restoreTimerState,
+  showTimerNotification,
 } = await import('../background/index')
 
 // Capture addListener call info immediately after import, before any
@@ -435,6 +441,53 @@ describe('Background Script – Timer Logic (chrome.alarms)', () => {
       expect(finalState.startTime).toBeNull()
     })
 
+    it('triggers a notification when timer finishes', async () => {
+      storageData['timerState'] = {
+        ...DEFAULT_TIMER_STATE,
+        isRunning: true,
+        timeLeft: 30,
+        startTime: Date.now() - 60 * 1000, // started 60s ago, only 30s left
+      }
+
+      await handleAlarm({ name: 'pomodoro-timer' } as chrome.alarms.Alarm)
+
+      expect(mockNotifications.create).toHaveBeenCalledTimes(1)
+    })
+
+    it('sends work-mode notification when work timer finishes', async () => {
+      storageData['timerState'] = {
+        ...DEFAULT_TIMER_STATE,
+        mode: 'work',
+        isRunning: true,
+        timeLeft: 10,
+        startTime: Date.now() - 20 * 1000,
+      }
+
+      await handleAlarm({ name: 'pomodoro-timer' } as chrome.alarms.Alarm)
+
+      expect(mockNotifications.create).toHaveBeenCalledWith(
+        expect.any(String),
+        expect.objectContaining({ title: 'Work session complete!' })
+      )
+    })
+
+    it('sends break-mode notification when break timer finishes', async () => {
+      storageData['timerState'] = {
+        ...DEFAULT_TIMER_STATE,
+        mode: 'break',
+        isRunning: true,
+        timeLeft: 10,
+        startTime: Date.now() - 20 * 1000,
+      }
+
+      await handleAlarm({ name: 'pomodoro-timer' } as chrome.alarms.Alarm)
+
+      expect(mockNotifications.create).toHaveBeenCalledWith(
+        expect.any(String),
+        expect.objectContaining({ title: 'Break is over!' })
+      )
+    })
+
     it('clears the alarm when timer finishes', async () => {
       storageData['timerState'] = {
         ...DEFAULT_TIMER_STATE,
@@ -463,6 +516,18 @@ describe('Background Script – Timer Logic (chrome.alarms)', () => {
       expect(updatedState.timeLeft).toBe(8 * 60)
       // startTime should be reset to now
       expect(updatedState.startTime).not.toBeNull()
+    })
+    it('does not trigger a notification when timer is still running', async () => {
+      storageData['timerState'] = {
+        ...DEFAULT_TIMER_STATE,
+        isRunning: true,
+        timeLeft: 10 * 60,
+        startTime: Date.now() - 2 * 60 * 1000, // 2 minutes ago
+      }
+
+      await handleAlarm({ name: 'pomodoro-timer' } as chrome.alarms.Alarm)
+
+      expect(mockNotifications.create).not.toHaveBeenCalled()
     })
   })
 
@@ -544,6 +609,30 @@ describe('Background Script – Timer Logic (chrome.alarms)', () => {
 
       await restoreTimerState()
       expect(mockAlarms.create).not.toHaveBeenCalled()
+    })
+
+    it('triggers a notification when timer expired while inactive', async () => {
+      storageData['timerState'] = {
+        ...DEFAULT_TIMER_STATE,
+        isRunning: true,
+        timeLeft: 30,
+        startTime: Date.now() - 60 * 1000,
+      }
+
+      await restoreTimerState()
+      expect(mockNotifications.create).toHaveBeenCalledTimes(1)
+    })
+
+    it('does not trigger a notification when timer is still running on restore', async () => {
+      storageData['timerState'] = {
+        ...DEFAULT_TIMER_STATE,
+        isRunning: true,
+        timeLeft: 10 * 60,
+        startTime: Date.now() - 2 * 60 * 1000, // 2 minutes ago, 8 min left
+      }
+
+      await restoreTimerState()
+      expect(mockNotifications.create).not.toHaveBeenCalled()
     })
 
     it('re-creates alarm when timer is still running with remaining time', async () => {
@@ -651,6 +740,87 @@ describe('Background Script – Timer Logic (chrome.alarms)', () => {
 
       const result = await restoreTimerState()
       expect(result.duration).toBe(50 * 60)
+    })
+  })
+
+  // ── showTimerNotification ─────────────────────────────────────────
+
+  describe('showTimerNotification()', () => {
+    it('exports showTimerNotification function', () => {
+      expect(typeof showTimerNotification).toBe('function')
+    })
+
+    it('calls chrome.notifications.create', async () => {
+      await showTimerNotification('work')
+      expect(mockNotifications.create).toHaveBeenCalledTimes(1)
+    })
+
+    it('uses "basic" notification type', async () => {
+      await showTimerNotification('work')
+      expect(mockNotifications.create).toHaveBeenCalledWith(
+        expect.any(String),
+        expect.objectContaining({ type: 'basic' })
+      )
+    })
+
+    it('includes an icon URL', async () => {
+      await showTimerNotification('work')
+      expect(mockNotifications.create).toHaveBeenCalledWith(
+        expect.any(String),
+        expect.objectContaining({ iconUrl: 'icons/icon-128.png' })
+      )
+    })
+
+    it('uses a consistent notification ID', async () => {
+      await showTimerNotification('work')
+      expect(mockNotifications.create).toHaveBeenCalledWith(
+        'pomodoro-timer-finished',
+        expect.any(Object)
+      )
+    })
+
+    it('shows work-session title for work mode', async () => {
+      await showTimerNotification('work')
+      expect(mockNotifications.create).toHaveBeenCalledWith(
+        expect.any(String),
+        expect.objectContaining({ title: 'Work session complete!' })
+      )
+    })
+
+    it('shows break-over title for break mode', async () => {
+      await showTimerNotification('break')
+      expect(mockNotifications.create).toHaveBeenCalledWith(
+        expect.any(String),
+        expect.objectContaining({ title: 'Break is over!' })
+      )
+    })
+
+    it('shows work-mode message suggesting a break', async () => {
+      await showTimerNotification('work')
+      expect(mockNotifications.create).toHaveBeenCalledWith(
+        expect.any(String),
+        expect.objectContaining({
+          message: 'Great job! Time to take a break.',
+        })
+      )
+    })
+
+    it('shows break-mode message suggesting focus', async () => {
+      await showTimerNotification('break')
+      expect(mockNotifications.create).toHaveBeenCalledWith(
+        expect.any(String),
+        expect.objectContaining({
+          message: 'Break finished. Ready to focus again?',
+        })
+      )
+    })
+
+    it('sets priority to 2 (high)', async () => {
+      await showTimerNotification('work')
+      expect(mockNotifications.create).toHaveBeenCalledWith(
+        expect.any(String),
+        expect.objectContaining({ priority: 2 })
+      )
     })
   })
 

@@ -8,6 +8,7 @@
 
 const ALARM_NAME = 'pomodoro-timer'
 const STORAGE_KEY = 'timerState'
+const NOTIFICATION_ID = 'pomodoro-timer-finished'
 
 export interface TimerStorageState {
   /** Total duration of the timer in seconds */
@@ -138,6 +139,28 @@ export async function resetTimer(
 }
 
 /**
+ * Show a chrome.notifications alert to inform the user the timer has finished.
+ */
+export async function showTimerNotification(
+  mode: 'work' | 'break'
+): Promise<void> {
+  const title =
+    mode === 'work' ? 'Work session complete!' : 'Break is over!'
+  const message =
+    mode === 'work'
+      ? 'Great job! Time to take a break.'
+      : 'Break finished. Ready to focus again?'
+
+  await chrome.notifications.create(NOTIFICATION_ID, {
+    type: 'basic',
+    iconUrl: 'icons/icon-128.png',
+    title,
+    message,
+    priority: 2,
+  })
+}
+
+/**
  * Handle alarm firing: check if timer has reached zero.
  */
 export async function handleAlarm(
@@ -161,6 +184,7 @@ export async function handleAlarm(
 
     await setTimerState(finishedState)
     await chrome.alarms.clear(ALARM_NAME)
+    await showTimerNotification(state.mode)
   } else {
     // Update stored timeLeft so popup can read the latest
     const updatedState: TimerStorageState = {
@@ -198,6 +222,7 @@ export async function restoreTimerState(): Promise<TimerStorageState> {
       startTime: null,
     }
     await setTimerState(finishedState)
+    await showTimerNotification(state.mode)
     return finishedState
   }
 

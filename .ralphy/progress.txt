@@ -82,3 +82,20 @@
   - Preserves mode and duration during restore
 - All 136 tests passing (14 new + 122 existing)
 - Linting passes cleanly (0 errors, 2 pre-existing warnings from shadcn components)
+
+## 2026-02-15: Phase 2 - Task 3: Setup chrome.notifications alert when countdown reaches zero
+- Added `showTimerNotification()` function to `src/background/index.ts`:
+  - Accepts `mode` parameter ('work' | 'break') to customize notification content
+  - Work mode: title "Work session complete!", message "Great job! Time to take a break."
+  - Break mode: title "Break is over!", message "Break finished. Ready to focus again?"
+  - Uses `chrome.notifications.create()` with type 'basic', icon 'icons/icon-128.png', priority 2
+  - Uses a consistent notification ID (`pomodoro-timer-finished`) to replace previous notifications
+- Integrated notification into `handleAlarm()`: triggers `showTimerNotification(state.mode)` when timer reaches zero
+- Integrated notification into `restoreTimerState()`: triggers notification when timer expired while service worker was inactive
+- Added `NOTIFICATION_ID` constant for consistent notification identification
+- Wrote 16 new tests covering:
+  - showTimerNotification: export, chrome.notifications.create call, 'basic' type, icon URL, notification ID, work title, break title, work message, break message, priority 2
+  - handleAlarm notification integration: triggers notification on finish, work-mode notification title, break-mode notification title, no notification when still running
+  - restoreTimerState notification integration: triggers notification on expired timer, no notification when timer still running
+- All 152 tests passing (16 new + 136 existing)
+- Linting passes cleanly (0 errors, 2 pre-existing warnings from shadcn components)
