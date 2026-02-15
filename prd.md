@@ -1,57 +1,28 @@
-Role: You are an expert Senior Full-Stack Developer specializing in Chrome Extension development, TypeScript, and modern UI frameworks.
-
-Objective: Create a functional Browser Extension (Manifest V3) that acts as a Pomodoro Timer integrated with a Task Manager.
-
-Tech Stack:
-
-Language: TypeScript
-
-Framework: React
-
-Styling: Tailwind CSS
-
-UI Components: shadcn/ui (specifically: Button, Card, Input, Progress, Checkbox, and ScrollArea)
-
-Build Tool: Vite
-
-Core Features & Logic:
-
-Persistent Timer: Implement the countdown logic in a background.ts service worker using chrome.alarms and chrome.storage. This ensures the timer doesn't reset when the extension popup is closed.
-
-Task Manager:
-
-A section to add, delete, and toggle tasks (Done/Pending).
-
-The ability to "Select" a task to work on, which displays that task's name above the timer.
-
-Presets & Customization:
-
-A list of saved time presets (e.g., Focus: 45m, Short Break: 10m, Long Break: 20m).
-
-An input field to add custom durations to the list.
-
-Completion Alerts:
-
-Trigger a chrome.notifications alert when the time is up.
-
-Show a shadcn Dialog (Modal) when the popup is opened if a session has just finished.
-
-UI/UX Design (shadcn/ui):
-
-Structure: Use a Tabs component to switch between "Timer" and "Task List."
-
-Timer View: A large, centered countdown display using a shadcn Progress ring or bar.
-
-Task View: A ScrollArea containing a list of tasks with Checkbox components.
-
-Theme: Modern, sleek, and supports dark mode.
-
-Deliverables:
-
-manifest.json configured for V3.
-
-background.ts for background timer persistence.
-
-Popup.tsx and related components using shadcn and Tailwind.
-
-Step-by-step instructions for initializing the project, installing shadcn components, and loading the dist folder into Chrome.
+Phase 1: Project Scaffolding & Environment
+- [x] Initialize Vite + React + TypeScript project with a structure compatible with Chrome Extensions.
+- [ ] Configure tailwind.config.js and install shadcn/ui CLI.
+- [ ] Install essential shadcn components: Button, Card, Input, Progress, Checkbox, Tabs, Dialog, ScrollArea, and Toast.
+- [ ] Create a manifest.json (Manifest V3) with permissions for: alarms, storage, notifications, and activeTab.
+Phase 2: The Core Engine (Background Script)
+- [ ] Create src/background.ts to host the primary timer logic using chrome.alarms.
+- [ ] Implement chrome.storage.local to persist the timer state (time remaining, isRunning, startTime).
+- [ ] Setup a listener to trigger a chrome.notifications alert when the countdown reaches zero.
+- [ ] Create a message listener to sync data between the popup and the background script.
+Phase 3: State Management & Storage Hooks
+- [ ] Define TypeScript interfaces for:
+Task { id: string, text: string, completed: boolean, isSelected: boolean }
+TimerState { mode: 'work' | 'break', timeLeft: number, isRunning: boolean }
+- [ ] Create a custom React hook useChromeStorage to handle real-time updates between the extension UI and chrome.storage.local.
+Phase 4: UI Development (shadcn/ui)
+- [ ] Timer View: Build a centered countdown display with a shadcn Progress bar and control buttons (Start, Pause, Reset).
+- [ ] Presets Section: Implement a list of clickable time presets (25m, 50m, 15m) and a custom duration input.
+- [ ] Task List: Create a ScrollArea containing a list of tasks with Checkbox toggles and a "Delete" action.
+- [ ] Layout: Wrap everything in a shadcn Tabs component to switch between "Focus" and "Tasks".
+Phase 5: Completion Logic & Polish
+- [ ] Implement the "Rest/Break" popup: A shadcn Dialog that appears automatically when the timer finishes.
+- [ ] Add "Active Task" display: Show the currently selected task name above the timer.
+- [ ] Configure vite.config.ts for multi-page build (generating popup.html and background.js in the /dist folder).
+Phase 6: Final Validation
+- [ ] Verify that the timer continues to count down even when the extension popup is closed.
+- [ ] Ensure tasks remain saved after a browser restart.
+- [ ] Test the "Add Custom Time" functionality for edge cases (0 or negative numbers).

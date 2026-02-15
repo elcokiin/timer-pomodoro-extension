@@ -1,2 +1,15 @@
 # Ralphy Progress Log
 
+## 2026-02-15: Phase 1 - Task 1: Initialize Vite + React + TypeScript project
+- Scaffolded Vite + React + TypeScript project using `create-vite` with `react-ts` template
+- Adapted project structure for Chrome Extension compatibility:
+  - Created `src/background/`, `src/components/`, `src/hooks/`, `src/types/` directories
+  - Updated `index.html` as popup entry point (400x500px body dimensions)
+  - Cleaned up boilerplate (removed default Vite/React demo code)
+- Added Chrome Extension dev dependencies: `@types/chrome`
+- Added test infrastructure: `vitest`, `@testing-library/react`, `@testing-library/jest-dom`, `jsdom`
+- Configured Vitest in `vite.config.ts` with jsdom environment
+- Added `chrome` type to `tsconfig.app.json` for Chrome API type support
+- Updated `package.json` name to `pomodoro-task-extension`, added `test` and `test:watch` scripts
+- Wrote 12 tests (App component rendering + project structure validation), all passing
+- Linting passes cleanly
