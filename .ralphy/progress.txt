@@ -39,3 +39,29 @@
 - Wrote 20 new tests validating manifest.json structure, permissions, action, background, and icons (75 total tests)
 - All 75 tests passing
 - Linting passes cleanly (0 errors, 2 pre-existing warnings from shadcn components)
+
+## 2026-02-15: Phase 2 - Task 1: Create src/background.ts with timer logic using chrome.alarms
+- Created `src/background/index.ts` as the background service worker entry point
+- Implemented core timer logic using `chrome.alarms` API:
+  - `TimerStorageState` interface: duration, timeLeft, isRunning, startTime, mode (work/break)
+  - `DEFAULT_TIMER_STATE`: 25-minute work timer, not running, null startTime
+  - `getTimerState()`: reads timer state from `chrome.storage.local`, returns defaults if empty
+  - `setTimerState()`: persists timer state to `chrome.storage.local`
+  - `computeTimeLeft()`: calculates real-time remaining seconds using elapsed time from startTime
+  - `startTimer()`: sets isRunning, records startTime, creates chrome alarm with correct delay and 1-minute period
+  - `pauseTimer()`: computes remaining time, stops timer, clears chrome alarm
+  - `resetTimer()`: resets timeLeft to duration (or custom duration), stops timer, clears alarm
+  - `handleAlarm()`: on alarm fire, checks remaining time; finishes timer if zero, updates stored state if still running
+- Registered `handleAlarm` as `chrome.alarms.onAlarm` listener at module level
+- Wrote 47 tests covering:
+  - Module structure (8 exports verified)
+  - DEFAULT_TIMER_STATE values (5 tests)
+  - getTimerState/setTimerState storage interaction (5 tests)
+  - computeTimeLeft pure logic (4 tests: not running, null startTime, elapsed computation, floor at zero)
+  - startTimer behavior (7 tests: sets running, records timestamp, creates alarm, saves state, idempotent, guards zero timeLeft, alarm delay)
+  - pauseTimer behavior (5 tests: stops running, clears alarm, nulls startTime, preserves remaining time, no-op if not running)
+  - resetTimer behavior (6 tests: stops running, resets timeLeft, clears alarm, nulls startTime, custom duration, default duration)
+  - handleAlarm behavior (5 tests: ignores other alarms, no-op if not running, finishes at zero, clears alarm on finish, updates mid-run)
+  - Listener registration (2 tests: addListener called, function passed)
+- All 122 tests passing (47 new + 75 existing)
+- Linting passes cleanly (0 errors, 2 pre-existing warnings from shadcn components)
