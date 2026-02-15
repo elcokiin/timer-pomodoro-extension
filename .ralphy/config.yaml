@@ -1,0 +1,37 @@
+# Ralphy Configuration
+# https://github.com/michaelshimeles/ralphy
+
+# Project info
+project:
+  name: "pomodoro-task-extension"
+  language: "TypeScript"
+  framework: "React + Vite"
+  description: "A Chrome Extension (Manifest V3) with a background-synced Pomodoro timer, task management, and shadcn/ui components."
+
+# Commands
+commands:
+  test: "npm test"
+  lint: "npm run lint"
+  build: "npm run build"
+
+# Rules - instructions the AI MUST follow
+rules:
+  - "Use Manifest V3 standards for all Chrome Extension APIs."
+  - "All UI components must be built using shadcn/ui and Tailwind CSS."
+  - "Timer logic must reside in a background service worker (background.ts) using chrome.alarms to ensure persistence when the popup is closed."
+  - "Use chrome.storage.local to synchronize timer state and task list between the background script and the popup UI."
+  - "Implement strict TypeScript interfaces for all data structures (TimerState, Task, Preset)."
+  - "Use Lucide-React for icons and follow a clean, minimalist aesthetic."
+  - "Ensure the 'Break' notification triggers both a browser notification and a shadcn Dialog/Toast."
+
+# Boundaries
+boundaries:
+  never_touch:
+    - "dist/**"
+    - "node_modules/**"
+    - "*.lock"
+    - ".gitignore"
+
+# Capabilities
+capabilities:
+  browser: "auto"
