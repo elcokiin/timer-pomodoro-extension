@@ -2,6 +2,7 @@ import { describe, it, expect, beforeEach, vi } from 'vitest'
 import { render, screen, waitFor, fireEvent } from '@testing-library/react'
 import { renderHook, act } from '@testing-library/react'
 import type { TimerStorageState, TimerMessage, TimerMessageResponse } from '../background/index'
+import type { Task } from '../types/index'
 
 // ── Chrome API Mocks ────────────────────────────────────────────────
 
@@ -24,10 +25,42 @@ const mockSendMessage = vi.fn(
   }
 )
 
+// ── Chrome Storage Mocks (needed by useChromeStorage in TimerView) ──
+
+const storageData: Record<string, unknown> = {}
+
+type StorageChangeListener = (
+  changes: { [key: string]: chrome.storage.StorageChange },
+  areaName: string
+) => void
+
+const storageListeners: StorageChangeListener[] = []
+
+const mockStorage = {
+  local: {
+    get: vi.fn(async (key: string) => {
+      return { [key]: storageData[key] }
+    }),
+    set: vi.fn(async (items: Record<string, unknown>) => {
+      Object.assign(storageData, items)
+    }),
+  },
+  onChanged: {
+    addListener: vi.fn((listener: StorageChangeListener) => {
+      storageListeners.push(listener)
+    }),
+    removeListener: vi.fn((listener: StorageChangeListener) => {
+      const index = storageListeners.indexOf(listener)
+      if (index !== -1) storageListeners.splice(index, 1)
+    }),
+  },
+}
+
 vi.stubGlobal('chrome', {
   runtime: {
     sendMessage: mockSendMessage,
   },
+  storage: mockStorage,
 })
 
 // ── Import modules under test (after chrome mock is set up) ─────────
@@ -39,6 +72,11 @@ const { TimerView } = await import('../components/TimerView')
 
 function resetState(overrides: Partial<TimerStorageState> = {}) {
   currentState = { ...DEFAULT_STATE, ...overrides }
+  // Clear tasks storage
+  for (const key of Object.keys(storageData)) {
+    delete storageData[key]
+  }
+  storageListeners.length = 0
   // Also reset the mock implementation to use the new currentState
   mockSendMessage.mockImplementation(
     (
@@ -591,6 +629,137 @@ describe('TimerView Component', () => {
     mockSendMessage.mockImplementation(() => {})
     const { unmount } = render(<TimerView />)
     expect(screen.getByTestId('timer-loading')).toHaveTextContent('Loading')
+    unmount()
+  })
+})
+
+// ═════════════════════════════════════════════════════════════════════
+//  Active Task Display
+// ═════════════════════════════════════════════════════════════════════
+
+function seedTasks(tasks: Task[]) {
+  storageData['tasks'] = tasks
+}
+
+function makeTask(overrides: Partial<Task> = {}): Task {
+  return {
+    id: Date.now().toString(),
+    text: 'My Task',
+    completed: false,
+    isSelected: false,
+    ...overrides,
+  }
+}
+
+describe('TimerView – Active Task Display', () => {
+  beforeEach(() => {
+    resetState()
+    vi.clearAllMocks()
+    resetState()
+  })
+
+  it('does not show active task display when no tasks exist', async () => {
+    const { unmount } = render(<TimerView />)
+    await waitFor(() => {
+      expect(screen.getByTestId('timer-view')).toBeInTheDocument()
+    })
+    expect(screen.queryByTestId('active-task-display')).not.toBeInTheDocument()
+    unmount()
+  })
+
+  it('does not show active task display when no task is selected', async () => {
+    seedTasks([makeTask({ id: '1', text: 'Unselected task', isSelected: false })])
+    const { unmount } = render(<TimerView />)
+    await waitFor(() => {
+      expect(screen.getByTestId('timer-view')).toBeInTheDocument()
+    })
+    expect(screen.queryByTestId('active-task-display')).not.toBeInTheDocument()
+    unmount()
+  })
+
+  it('shows active task display when a task is selected', async () => {
+    seedTasks([makeTask({ id: '1', text: 'Write report', isSelected: true })])
+    const { unmount } = render(<TimerView />)
+    await waitFor(() => {
+      expect(screen.getByTestId('active-task-display')).toBeInTheDocument()
+    })
+    unmount()
+  })
+
+  it('displays the selected task text', async () => {
+    seedTasks([makeTask({ id: '1', text: 'Write report', isSelected: true })])
+    const { unmount } = render(<TimerView />)
+    await waitFor(() => {
+      expect(screen.getByTestId('active-task-display')).toHaveTextContent('Write report')
+    })
+    unmount()
+  })
+
+  it('only displays the selected task when multiple tasks exist', async () => {
+    seedTasks([
+      makeTask({ id: '1', text: 'Task A', isSelected: false }),
+      makeTask({ id: '2', text: 'Task B', isSelected: true }),
+      makeTask({ id: '3', text: 'Task C', isSelected: false }),
+    ])
+    const { unmount } = render(<TimerView />)
+    await waitFor(() => {
+      expect(screen.getByTestId('active-task-display')).toHaveTextContent('Task B')
+    })
+    unmount()
+  })
+
+  it('has a title attribute for tooltip on long task names', async () => {
+    const longText = 'This is a very long task name that should be truncated in the UI display'
+    seedTasks([makeTask({ id: '1', text: longText, isSelected: true })])
+    const { unmount } = render(<TimerView />)
+    await waitFor(() => {
+      const el = screen.getByTestId('active-task-display')
+      expect(el).toHaveAttribute('title', longText)
+    })
+    unmount()
+  })
+
+  it('active task display appears between mode badge and countdown', async () => {
+    seedTasks([makeTask({ id: '1', text: 'My active task', isSelected: true })])
+    const { unmount } = render(<TimerView />)
+    await waitFor(() => {
+      expect(screen.getByTestId('active-task-display')).toBeInTheDocument()
+    })
+
+    // Verify ordering: mode badge, then active task, then countdown
+    const timerView = screen.getByTestId('timer-view')
+    const modeBadge = screen.getByTestId('timer-mode')
+    const activeTask = screen.getByTestId('active-task-display')
+    const countdown = screen.getByTestId('timer-display')
+
+    const children = Array.from(timerView.children)
+    const modeIdx = children.indexOf(modeBadge)
+    const activeIdx = children.indexOf(activeTask)
+    const countdownIdx = children.indexOf(countdown)
+
+    expect(modeIdx).toBeLessThan(activeIdx)
+    expect(activeIdx).toBeLessThan(countdownIdx)
+    unmount()
+  })
+
+  it('does not show active task for a completed selected task', async () => {
+    // A completed task that is also selected should still be shown
+    // (the user may want to see what they completed while timing)
+    seedTasks([makeTask({ id: '1', text: 'Finished task', isSelected: true, completed: true })])
+    const { unmount } = render(<TimerView />)
+    await waitFor(() => {
+      expect(screen.getByTestId('active-task-display')).toHaveTextContent('Finished task')
+    })
+    unmount()
+  })
+
+  it('does not show active task display with empty tasks array', async () => {
+    seedTasks([])
+    const { unmount } = render(<TimerView />)
+    await waitFor(() => {
+      expect(screen.getByTestId('timer-view')).toBeInTheDocument()
+    })
+    expect(screen.queryByTestId('active-task-display')).not.toBeInTheDocument()
     unmount()
   })
 })

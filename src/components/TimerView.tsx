@@ -2,8 +2,10 @@ import { Play, Pause, RotateCcw } from 'lucide-react'
 import { Button } from '@/components/ui/button'
 import { Progress } from '@/components/ui/progress'
 import { useTimer } from '@/hooks/useTimer'
+import { useChromeStorage } from '@/hooks/useChromeStorage'
 import { PresetsSection } from '@/components/PresetsSection'
 import { RestBreakDialog } from '@/components/RestBreakDialog'
+import type { Task } from '@/types/index'
 
 /**
  * Format seconds into MM:SS display string.
@@ -23,7 +25,9 @@ function formatTime(totalSeconds: number): string {
  */
 export function TimerView() {
   const { state, isLoading, start, pause, reset, setDuration, switchModeAndStart, justFinished, clearJustFinished } = useTimer()
+  const [tasks] = useChromeStorage<Task[]>('tasks', [])
 
+  const activeTask = tasks.find((t) => t.isSelected) ?? null
   const isFinished = state.timeLeft <= 0 && !state.isRunning
 
   if (isLoading) {
@@ -46,6 +50,17 @@ export function TimerView() {
       >
         {state.mode === 'work' ? 'Work' : 'Break'}
       </span>
+
+      {/* Active task display */}
+      {activeTask && (
+        <p
+          data-testid="active-task-display"
+          className="text-foreground text-sm font-medium truncate max-w-[240px] text-center -mt-2 -mb-2"
+          title={activeTask.text}
+        >
+          {activeTask.text}
+        </p>
+      )}
 
       {/* Countdown display */}
       <div

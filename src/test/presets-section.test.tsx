@@ -28,6 +28,16 @@ vi.stubGlobal('chrome', {
   runtime: {
     sendMessage: mockSendMessage,
   },
+  storage: {
+    local: {
+      get: vi.fn(async () => ({})),
+      set: vi.fn(async () => {}),
+    },
+    onChanged: {
+      addListener: vi.fn(),
+      removeListener: vi.fn(),
+    },
+  },
 })
 
 // ── Import modules under test (after chrome mock is set up) ─────────

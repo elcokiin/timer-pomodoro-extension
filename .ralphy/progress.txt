@@ -214,6 +214,29 @@
 - All 412 tests passing (32 new + 380 existing)
 - Linting passes cleanly (0 errors, 2 pre-existing warnings from shadcn components)
 
+## 2026-02-15: Phase 5 - Task 2: Add "Active Task" display above the timer
+- Updated `src/components/TimerView.tsx`:
+  - Added `useChromeStorage<Task[]>('tasks', [])` to read tasks from storage (read-only)
+  - Derives `activeTask` from the task with `isSelected: true`
+  - Displays selected task name between the mode badge and countdown display
+  - `truncate` + `max-w-[240px]` for long task names with `title` tooltip attribute
+  - Conditionally rendered: only shows when a task is selected
+- Updated `src/test/timer-view.test.tsx`:
+  - Added `chrome.storage` mocks (local.get, local.set, onChanged) to support `useChromeStorage` in TimerView
+  - Added storage cleanup to `resetState()` helper
+  - Added `seedTasks()` and `makeTask()` test helpers
+  - 9 new "Active Task Display" tests covering:
+    - No display when no tasks, no selected task, or empty tasks array
+    - Shows display when task is selected with correct text
+    - Only shows the selected task when multiple tasks exist
+    - Title attribute for tooltip on long names
+    - Correct DOM ordering: mode badge -> active task -> countdown
+    - Completed+selected task still displayed
+- Fixed `src/test/rest-break-dialog.test.tsx`: added `chrome.storage` mocks (TimerView now uses `useChromeStorage`)
+- Fixed `src/test/presets-section.test.tsx`: added `chrome.storage` mocks (TimerView now uses `useChromeStorage`)
+- All 421 tests passing (9 new + 412 existing)
+- Linting passes cleanly (0 errors, 2 pre-existing warnings from shadcn components)
+
 ## 2026-02-15: Phase 4 - Task 1: Timer View with countdown display, Progress bar, and control buttons
 - Created `src/hooks/useTimer.ts` custom React hook for background communication:
   - `sendTimerMessage()`: typed wrapper around `chrome.runtime.sendMessage` returning `TimerStorageState`
