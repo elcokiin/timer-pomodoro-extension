@@ -240,3 +240,47 @@
   - TimerView integration (7 tests): renders presets section, renders preset buttons, renders custom input, sends SET_DURATION on preset click, updates countdown display, sends SET_DURATION for custom input, disables presets when running
 - All 309 tests passing (35 new + 274 existing)
 - Linting passes cleanly (0 errors, 2 pre-existing warnings from shadcn components)
+
+## 2026-02-15: Phase 4 - Task 3: Task List with ScrollArea, Checkbox toggles, and Delete action
+- Created `src/hooks/useTasks.ts` custom React hook for task CRUD operations:
+  - Uses `useChromeStorage<Task[]>('tasks', [])` for persistence to `chrome.storage.local`
+  - `addTask(text)`: creates a new Task with `Date.now()` ID, trims whitespace, rejects empty strings
+  - `toggleTask(id)`: toggles `completed` boolean on a task by ID
+  - `deleteTask(id)`: removes a task from the array by ID
+  - `selectTask(id)`: marks a task as `isSelected` (active task for timer display), deselects all others; toggling an already-selected task deselects it
+  - All operations persist immediately via `useChromeStorage` callback updater
+  - Returns `{ tasks, isLoading, addTask, toggleTask, deleteTask, selectTask }`
+- Created `src/components/TaskList.tsx` component:
+  - Loading state: shows "Loading..." indicator while tasks are fetched from storage
+  - Add task section: text input with "Add a task..." placeholder and "Add" button with Plus icon
+  - Add task supports Enter key submission for convenience
+  - Add button disabled when input is empty/whitespace
+  - Clears input after successful task addition
+  - Empty state: displays "No tasks yet. Add one above!" when task list is empty
+  - Task items rendered inside shadcn `ScrollArea` (max-height 280px) for overflow handling
+  - Each task item has:
+    - shadcn `Checkbox` for toggling completed state
+    - Clickable task text for selecting as active task (with truncation for long text)
+    - Completed tasks show `line-through` and `text-muted-foreground` styling
+    - Selected tasks show `font-medium` text and `bg-muted/70` + `ring-primary/30` highlight on the row
+    - Delete button (Trash2 icon) with ghost variant, appears on hover via `group-hover:opacity-100`
+    - Delete button uses `text-destructive` color for visual clarity
+  - Uses `data-testid` attributes on every significant DOM element for testing
+- Wrote 52 new tests in `src/test/task-list.test.tsx` covering:
+  - useTasks Hook (22 tests):
+    - Module export, initial empty state, isLoading lifecycle, loads from storage, CRUD function types
+    - addTask: appends task, sets completed/isSelected to false, generates string ID, trims whitespace, rejects empty/whitespace, persists to storage
+    - toggleTask: marks completed, unmarks completed, preserves other tasks
+    - deleteTask: removes by ID, persists removal
+    - selectTask: selects task, deselects on re-click, deselects others when selecting one
+  - TaskList Component (30 tests):
+    - Loading state: loading indicator shown, "Loading" text
+    - Empty state: renders container, empty message, add input, placeholder, add button, "Add" text, scroll area, button disabled when empty
+    - With tasks: renders task items from storage, task text, checkbox, delete button, no empty state
+    - Adding: adds on button click, adds on Enter key, clears input, rejects whitespace, removes empty state
+    - Toggling: checkbox toggles completion, completed shows line-through, incomplete no line-through
+    - Deleting: delete removes task, shows empty state after last delete
+    - Selecting: click selects, re-click deselects, selected has highlight, non-selected no highlight
+    - Multiple tasks: renders many tasks, deleting one preserves others
+- All 361 tests passing (52 new + 309 existing)
+- Linting passes cleanly (0 errors, 2 pre-existing warnings from shadcn components)
