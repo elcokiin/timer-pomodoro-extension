@@ -23,6 +23,6 @@ Phase 5: Completion Logic & Polish
 - [x] Add "Active Task" display: Show the currently selected task name above the timer.
 - [x] Configure vite.config.ts for multi-page build (generating popup.html and background.js in the /dist folder).
 Phase 6: Final Validation
-- [ ] Verify that the timer continues to count down even when the extension popup is closed.
+- [x] Verify that the timer continues to count down even when the extension popup is closed.
 - [ ] Ensure tasks remain saved after a browser restart.
 - [ ] Test the "Add Custom Time" functionality for edge cases (0 or negative numbers).

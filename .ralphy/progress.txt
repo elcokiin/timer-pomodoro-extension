@@ -402,3 +402,23 @@
   - Tests use `it.skipIf(!distExists)` for graceful handling when dist/ is absent
 - All 455 tests passing (34 new + 421 existing)
 - Linting passes cleanly (0 errors, 2 pre-existing warnings from shadcn components)
+
+## 2026-02-15: Phase 6 - Task 1: Verify timer continues counting when popup is closed
+- Created `src/test/timer-persistence-popup-closed.test.ts` with 34 comprehensive verification tests
+- Validated the existing architecture ensures the timer counts down independently of the popup:
+  - `chrome.alarms` API runs in the background service worker, independent of the popup lifecycle
+  - `startTime` + `timeLeft` are persisted to `chrome.storage.local`, enabling elapsed-time recomputation
+  - `computeTimeLeft()` derives real-time remaining seconds from `startTime`, not from polling
+  - `restoreTimerState()` re-creates the alarm on service worker restart, preventing silent timer death
+  - `handleMessage(GET_STATE)` recomputes `timeLeft` so the popup always shows correct time on reopen
+- Test coverage breakdown (34 tests):
+  - computeTimeLeft – real-time derivation (6 tests): 5/10/24 min elapsed, full expiry, negative floor, paused state
+  - GET_STATE – popup re-opened after being closed (6 tests): accurate timeLeft after 3/20 min, expired timer, read-only guarantee, isRunning preservation, break mode
+  - handleAlarm – fires while popup is closed (6 tests): updates stored timeLeft, finishes expired timer, triggers notification, clears alarm on finish, no clear mid-countdown, resets startTime
+  - restoreTimerState – service worker restart (5 tests): re-creates alarm, correct delay, finishes expired timer, sends notification, persists updated state
+  - startTimer – persists startTime for offline computation (3 tests): persists startTime, isRunning, creates alarm
+  - End-to-end lifecycle (3 tests): start → close → alarm → reopen shows correct time, timer finish while closed, notification when expired while closed
+  - Break mode persistence (2 tests): correct remaining break time, break notification while popup closed
+  - Storage persistence guarantees (3 tests): round-trip integrity, all fields persisted, startTime precision
+- All 489 tests passing (34 new + 455 existing)
+- Linting passes cleanly (0 errors, 2 pre-existing warnings from shadcn components)
