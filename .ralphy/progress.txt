@@ -175,3 +175,38 @@
   - Edge cases: null, empty string, zero, false values from storage, sequential setValue, callback updater latest value (6 tests)
 - All 236 tests passing (31 new + 205 existing)
 - Linting passes cleanly (0 errors, 2 pre-existing warnings from shadcn components)
+
+## 2026-02-15: Phase 4 - Task 1: Timer View with countdown display, Progress bar, and control buttons
+- Created `src/hooks/useTimer.ts` custom React hook for background communication:
+  - `sendTimerMessage()`: typed wrapper around `chrome.runtime.sendMessage` returning `TimerStorageState`
+  - Fetches initial state on mount via `GET_STATE` message to background service worker
+  - Polls every 1 second while the timer is running to keep countdown display accurate
+  - Exposes `start()`, `pause()`, `reset()` async actions that delegate to background script
+  - `startPolling()` / `stopPolling()` manage the interval lifecycle
+  - Properly cleans up interval on unmount to prevent memory leaks
+  - Returns `{ state, isLoading, start, pause, reset }` tuple
+- Created `src/components/TimerView.tsx` UI component:
+  - Loading state: shows "Loading..." indicator while initial state is fetched
+  - Mode badge: displays "Work" or "Break" label above the countdown
+  - Countdown display: large centered MM:SS format with leading zeros and tabular-nums for stable layout
+  - Progress bar: shadcn `Progress` component showing time remaining as percentage of total duration
+  - Control buttons: Start (Play icon), Pause (Pause icon), Reset (RotateCcw icon) using shadcn `Button`
+  - Start/Pause toggle: shows Start when idle, Pause when running
+  - Disabled state: Start button disabled when timer reaches zero (prevents starting a finished timer)
+  - Uses lucide-react icons (Play, Pause, RotateCcw) for button icons
+- Updated `src/App.tsx` to integrate `TimerView` component into the main application layout
+- Updated `src/test/App.test.tsx` to mock `chrome.runtime.sendMessage` for App tests (since App now renders TimerView)
+- Wrote 38 new tests in `src/test/timer-view.test.tsx` covering:
+  - useTimer Hook (13 tests):
+    - Module export, GET_STATE on mount, state from background, isLoading lifecycle
+    - START/PAUSE/RESET message sending and state updates
+    - Polling cleanup on unmount, return shape validation
+  - TimerView Component (25 tests):
+    - Rendering: timer-view container, countdown display, mode label (work/break), progress bar, controls
+    - Time formatting: leading zeros, single-digit minutes/seconds, zero display, large durations (50:00)
+    - Button states: Start shown when idle, Pause shown when running, Start disabled at zero
+    - Button interactions: START/PAUSE/RESET message sending on click, Start-to-Pause toggle, Pause-to-Start toggle
+    - Button text labels: "Start", "Pause", "Reset"
+    - Loading state: loading indicator shown before fetch, "Loading" text content
+- All 274 tests passing (38 new + 236 existing)
+- Linting passes cleanly (0 errors, 2 pre-existing warnings from shadcn components)
