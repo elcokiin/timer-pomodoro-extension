@@ -4,11 +4,38 @@
  * Hosts the primary timer logic using chrome.alarms API.
  * The alarm fires every minute, and we track elapsed time against
  * a stored startTime + duration to compute time remaining.
+ *
+ * Exposes a chrome.runtime.onMessage listener so the popup can
+ * send commands (GET_STATE, START, PAUSE, RESET, SET_MODE, SET_DURATION)
+ * and receive the up-to-date TimerStorageState in the response.
  */
 
 const ALARM_NAME = 'pomodoro-timer'
 const STORAGE_KEY = 'timerState'
 const NOTIFICATION_ID = 'pomodoro-timer-finished'
+
+// ── Message Protocol ────────────────────────────────────────────────
+
+export type MessageType =
+  | 'GET_STATE'
+  | 'START'
+  | 'PAUSE'
+  | 'RESET'
+  | 'SET_MODE'
+  | 'SET_DURATION'
+
+export interface TimerMessage {
+  type: MessageType
+  /** Optional payload – used by RESET (custom duration) and SET_MODE */
+  payload?: {
+    duration?: number
+    mode?: 'work' | 'break'
+  }
+}
+
+export interface TimerMessageResponse {
+  state: TimerStorageState
+}
 
 export interface TimerStorageState {
   /** Total duration of the timer in seconds */
@@ -244,9 +271,92 @@ export async function restoreTimerState(): Promise<TimerStorageState> {
   return restoredState
 }
 
+/**
+ * Handle messages from the popup (or any extension page).
+ *
+ * The popup sends a TimerMessage and expects a TimerMessageResponse
+ * containing the latest TimerStorageState. We return `true` from
+ * the listener to indicate we will respond asynchronously.
+ */
+export async function handleMessage(
+  message: TimerMessage,
+  _sender: chrome.runtime.MessageSender,
+  sendResponse: (response: TimerMessageResponse) => void
+): Promise<void> {
+  let state: TimerStorageState
+
+  switch (message.type) {
+    case 'GET_STATE': {
+      const raw = await getTimerState()
+      // Recompute timeLeft so the popup always gets an accurate value.
+      state = {
+        ...raw,
+        timeLeft: computeTimeLeft(raw),
+      }
+      break
+    }
+
+    case 'START':
+      state = await startTimer()
+      break
+
+    case 'PAUSE':
+      state = await pauseTimer()
+      break
+
+    case 'RESET':
+      state = await resetTimer(message.payload?.duration)
+      break
+
+    case 'SET_MODE': {
+      const current = await getTimerState()
+      const newMode = message.payload?.mode ?? current.mode
+      state = {
+        ...current,
+        mode: newMode,
+      }
+      await setTimerState(state)
+      break
+    }
+
+    case 'SET_DURATION': {
+      const current = await getTimerState()
+      const newDuration = message.payload?.duration ?? current.duration
+      state = {
+        ...current,
+        duration: newDuration,
+        timeLeft: newDuration,
+        isRunning: false,
+        startTime: null,
+      }
+      await setTimerState(state)
+      await chrome.alarms.clear(ALARM_NAME)
+      break
+    }
+
+    default:
+      state = await getTimerState()
+      break
+  }
+
+  sendResponse({ state })
+}
+
 // ── Register listeners ─────────────────────────────────────────────
 
 chrome.alarms.onAlarm.addListener(handleAlarm)
+
+// The listener must return `true` to signal an asynchronous sendResponse.
+chrome.runtime.onMessage.addListener(
+  (
+    message: TimerMessage,
+    sender: chrome.runtime.MessageSender,
+    sendResponse: (response: TimerMessageResponse) => void
+  ) => {
+    handleMessage(message, sender, sendResponse)
+    return true // keep the message channel open for the async response
+  }
+)
 
 // Restore timer state when the service worker starts up.
 // This ensures persistence across service worker restarts.

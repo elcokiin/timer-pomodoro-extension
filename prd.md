@@ -7,7 +7,7 @@ Phase 2: The Core Engine (Background Script)
 - [x] Create src/background.ts to host the primary timer logic using chrome.alarms.
 - [x] Implement chrome.storage.local to persist the timer state (time remaining, isRunning, startTime).
 - [x] Setup a listener to trigger a chrome.notifications alert when the countdown reaches zero.
-- [ ] Create a message listener to sync data between the popup and the background script.
+- [x] Create a message listener to sync data between the popup and the background script.
 Phase 3: State Management & Storage Hooks
 - [ ] Define TypeScript interfaces for:
 Task { id: string, text: string, completed: boolean, isSelected: boolean }

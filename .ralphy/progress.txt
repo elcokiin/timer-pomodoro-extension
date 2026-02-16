@@ -99,3 +99,34 @@
   - restoreTimerState notification integration: triggers notification on expired timer, no notification when timer still running
 - All 152 tests passing (16 new + 136 existing)
 - Linting passes cleanly (0 errors, 2 pre-existing warnings from shadcn components)
+
+## 2026-02-15: Phase 2 - Task 4: Create a message listener to sync data between the popup and the background script
+- Defined a typed message protocol in `src/background/index.ts`:
+  - `MessageType` union type: `'GET_STATE' | 'START' | 'PAUSE' | 'RESET' | 'SET_MODE' | 'SET_DURATION'`
+  - `TimerMessage` interface: `{ type: MessageType, payload?: { duration?: number, mode?: 'work' | 'break' } }`
+  - `TimerMessageResponse` interface: `{ state: TimerStorageState }`
+- Implemented `handleMessage()` async function to process popup commands:
+  - `GET_STATE`: reads storage and recomputes `timeLeft` via `computeTimeLeft()` for accuracy (read-only, does not modify storage)
+  - `START`: delegates to `startTimer()`, returns updated state
+  - `PAUSE`: delegates to `pauseTimer()`, returns updated state
+  - `RESET`: delegates to `resetTimer()`, supports optional custom duration via `payload.duration`
+  - `SET_MODE`: updates `mode` field on current state, persists to storage
+  - `SET_DURATION`: sets new `duration` and `timeLeft`, stops timer, clears alarm, persists to storage
+  - Unknown message types: gracefully returns current state from storage
+  - Always calls `sendResponse({ state })` exactly once per message
+- Registered `chrome.runtime.onMessage.addListener` at module level:
+  - Wrapper function calls `handleMessage()` and returns `true` to keep the message channel open for async `sendResponse`
+- Added `chrome.runtime` mock to test setup (`mockRuntime.onMessage.addListener`)
+- Wrote 35 new tests covering:
+  - Module export: `handleMessage` function export
+  - Listener registration: `chrome.runtime.onMessage.addListener` called, passes function, wrapper returns `true`
+  - GET_STATE: default state, stored state, recomputes timeLeft for running timer, does not modify storage
+  - START: starts timer, creates alarm, persists state
+  - PAUSE: pauses running timer, clears alarm, preserves remaining time
+  - RESET: resets to default duration, accepts custom duration payload, clears alarm
+  - SET_MODE: changes to break/work, persists to storage, preserves other properties, defaults to current mode
+  - SET_DURATION: sets new duration/timeLeft, stops timer, clears alarm, persists state, defaults to current duration
+  - Unknown type: responds with current state
+  - sendResponse contract: called exactly once for each message type, response always contains full state shape
+- All 187 tests passing (35 new + 152 existing)
+- Linting passes cleanly (0 errors, 2 pre-existing warnings from shadcn components)

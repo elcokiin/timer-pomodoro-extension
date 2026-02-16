@@ -28,11 +28,18 @@ const mockNotifications = {
   create: vi.fn(async () => 'pomodoro-timer-finished'),
 }
 
+const mockRuntime = {
+  onMessage: {
+    addListener: vi.fn(),
+  },
+}
+
 // Install global chrome mock before module import
 vi.stubGlobal('chrome', {
   storage: mockStorage,
   alarms: mockAlarms,
   notifications: mockNotifications,
+  runtime: mockRuntime,
 })
 
 // ── Import module under test (after chrome mock is set up) ──────────
@@ -48,12 +55,15 @@ const {
   handleAlarm,
   restoreTimerState,
   showTimerNotification,
+  handleMessage,
 } = await import('../background/index')
 
 // Capture addListener call info immediately after import, before any
 // beforeEach can clear the mock call history.
 const addListenerCalledAfterImport = mockAlarms.onAlarm.addListener.mock.calls.length > 0
 const addListenerCallArgs = [...mockAlarms.onAlarm.addListener.mock.calls]
+const onMessageListenerCalledAfterImport = mockRuntime.onMessage.addListener.mock.calls.length > 0
+const onMessageListenerCallArgs = [...mockRuntime.onMessage.addListener.mock.calls]
 
 // ── Helpers ─────────────────────────────────────────────────────────
 
@@ -836,5 +846,524 @@ describe('Background Script – Listener Registration', () => {
   it('passes a function as the alarm listener', () => {
     expect(addListenerCallArgs.length).toBeGreaterThan(0)
     expect(typeof addListenerCallArgs[0][0]).toBe('function')
+  })
+
+  it('registers a message listener on chrome.runtime.onMessage', () => {
+    expect(onMessageListenerCalledAfterImport).toBe(true)
+  })
+
+  it('passes a function as the message listener', () => {
+    expect(onMessageListenerCallArgs.length).toBeGreaterThan(0)
+    expect(typeof onMessageListenerCallArgs[0][0]).toBe('function')
+  })
+
+  it('message listener wrapper returns true for async sendResponse', () => {
+    const wrapper = onMessageListenerCallArgs[0][0]
+    const result = wrapper({ type: 'GET_STATE' }, {}, vi.fn())
+    expect(result).toBe(true)
+  })
+})
+
+// ── handleMessage tests ─────────────────────────────────────────────
+
+describe('Background Script – Message Handler (handleMessage)', () => {
+  beforeEach(() => {
+    clearStorage()
+    vi.clearAllMocks()
+  })
+
+  // ── Module export ────────────────────────────────────────────────
+
+  describe('module export', () => {
+    it('exports handleMessage function', () => {
+      expect(typeof handleMessage).toBe('function')
+    })
+  })
+
+  // ── GET_STATE ────────────────────────────────────────────────────
+
+  describe('GET_STATE', () => {
+    it('responds with default state when storage is empty', async () => {
+      const sendResponse = vi.fn()
+      await handleMessage(
+        { type: 'GET_STATE' },
+        {} as chrome.runtime.MessageSender,
+        sendResponse
+      )
+
+      expect(sendResponse).toHaveBeenCalledTimes(1)
+      const { state } = sendResponse.mock.calls[0][0]
+      expect(state.duration).toBe(25 * 60)
+      expect(state.timeLeft).toBe(25 * 60)
+      expect(state.isRunning).toBe(false)
+      expect(state.mode).toBe('work')
+    })
+
+    it('returns stored state', async () => {
+      storageData['timerState'] = {
+        ...DEFAULT_TIMER_STATE,
+        duration: 50 * 60,
+        timeLeft: 30 * 60,
+        mode: 'break',
+      }
+
+      const sendResponse = vi.fn()
+      await handleMessage(
+        { type: 'GET_STATE' },
+        {} as chrome.runtime.MessageSender,
+        sendResponse
+      )
+
+      const { state } = sendResponse.mock.calls[0][0]
+      expect(state.duration).toBe(50 * 60)
+      expect(state.mode).toBe('break')
+    })
+
+    it('recomputes timeLeft for a running timer', async () => {
+      storageData['timerState'] = {
+        ...DEFAULT_TIMER_STATE,
+        isRunning: true,
+        timeLeft: 10 * 60,
+        startTime: Date.now() - 3 * 60 * 1000, // 3 min elapsed
+      }
+
+      const sendResponse = vi.fn()
+      await handleMessage(
+        { type: 'GET_STATE' },
+        {} as chrome.runtime.MessageSender,
+        sendResponse
+      )
+
+      const { state } = sendResponse.mock.calls[0][0]
+      expect(state.timeLeft).toBe(7 * 60) // 10 - 3 = 7 min
+      expect(state.isRunning).toBe(true)
+    })
+
+    it('does not modify stored state', async () => {
+      const original: TimerStorageState = {
+        ...DEFAULT_TIMER_STATE,
+        isRunning: true,
+        timeLeft: 10 * 60,
+        startTime: Date.now() - 2 * 60 * 1000,
+      }
+      storageData['timerState'] = { ...original }
+
+      const sendResponse = vi.fn()
+      await handleMessage(
+        { type: 'GET_STATE' },
+        {} as chrome.runtime.MessageSender,
+        sendResponse
+      )
+
+      // Storage should remain unchanged (GET_STATE is read-only)
+      const stored = storageData['timerState'] as TimerStorageState
+      expect(stored.timeLeft).toBe(original.timeLeft)
+      expect(stored.startTime).toBe(original.startTime)
+    })
+  })
+
+  // ── START ────────────────────────────────────────────────────────
+
+  describe('START', () => {
+    it('starts the timer and responds with running state', async () => {
+      const sendResponse = vi.fn()
+      await handleMessage(
+        { type: 'START' },
+        {} as chrome.runtime.MessageSender,
+        sendResponse
+      )
+
+      expect(sendResponse).toHaveBeenCalledTimes(1)
+      const { state } = sendResponse.mock.calls[0][0]
+      expect(state.isRunning).toBe(true)
+      expect(state.startTime).not.toBeNull()
+    })
+
+    it('creates a chrome alarm', async () => {
+      const sendResponse = vi.fn()
+      await handleMessage(
+        { type: 'START' },
+        {} as chrome.runtime.MessageSender,
+        sendResponse
+      )
+
+      expect(mockAlarms.create).toHaveBeenCalledWith(
+        'pomodoro-timer',
+        expect.objectContaining({ periodInMinutes: 1 })
+      )
+    })
+
+    it('persists state to storage', async () => {
+      const sendResponse = vi.fn()
+      await handleMessage(
+        { type: 'START' },
+        {} as chrome.runtime.MessageSender,
+        sendResponse
+      )
+
+      const saved = storageData['timerState'] as TimerStorageState
+      expect(saved.isRunning).toBe(true)
+    })
+  })
+
+  // ── PAUSE ────────────────────────────────────────────────────────
+
+  describe('PAUSE', () => {
+    it('pauses a running timer and responds with stopped state', async () => {
+      // First start
+      await handleMessage(
+        { type: 'START' },
+        {} as chrome.runtime.MessageSender,
+        vi.fn()
+      )
+
+      const sendResponse = vi.fn()
+      await handleMessage(
+        { type: 'PAUSE' },
+        {} as chrome.runtime.MessageSender,
+        sendResponse
+      )
+
+      const { state } = sendResponse.mock.calls[0][0]
+      expect(state.isRunning).toBe(false)
+      expect(state.startTime).toBeNull()
+    })
+
+    it('clears the chrome alarm', async () => {
+      await handleMessage(
+        { type: 'START' },
+        {} as chrome.runtime.MessageSender,
+        vi.fn()
+      )
+
+      await handleMessage(
+        { type: 'PAUSE' },
+        {} as chrome.runtime.MessageSender,
+        vi.fn()
+      )
+
+      expect(mockAlarms.clear).toHaveBeenCalledWith('pomodoro-timer')
+    })
+
+    it('preserves remaining time', async () => {
+      storageData['timerState'] = {
+        ...DEFAULT_TIMER_STATE,
+        isRunning: true,
+        timeLeft: 10 * 60,
+        startTime: Date.now() - 2 * 60 * 1000,
+      }
+
+      const sendResponse = vi.fn()
+      await handleMessage(
+        { type: 'PAUSE' },
+        {} as chrome.runtime.MessageSender,
+        sendResponse
+      )
+
+      const { state } = sendResponse.mock.calls[0][0]
+      expect(state.timeLeft).toBe(8 * 60)
+    })
+  })
+
+  // ── RESET ────────────────────────────────────────────────────────
+
+  describe('RESET', () => {
+    it('resets timer to default duration', async () => {
+      storageData['timerState'] = {
+        ...DEFAULT_TIMER_STATE,
+        timeLeft: 5 * 60,
+        isRunning: true,
+        startTime: Date.now(),
+      }
+
+      const sendResponse = vi.fn()
+      await handleMessage(
+        { type: 'RESET' },
+        {} as chrome.runtime.MessageSender,
+        sendResponse
+      )
+
+      const { state } = sendResponse.mock.calls[0][0]
+      expect(state.isRunning).toBe(false)
+      expect(state.timeLeft).toBe(25 * 60)
+      expect(state.startTime).toBeNull()
+    })
+
+    it('accepts a custom duration via payload', async () => {
+      const sendResponse = vi.fn()
+      await handleMessage(
+        { type: 'RESET', payload: { duration: 50 * 60 } },
+        {} as chrome.runtime.MessageSender,
+        sendResponse
+      )
+
+      const { state } = sendResponse.mock.calls[0][0]
+      expect(state.duration).toBe(50 * 60)
+      expect(state.timeLeft).toBe(50 * 60)
+    })
+
+    it('clears the chrome alarm', async () => {
+      await handleMessage(
+        { type: 'RESET' },
+        {} as chrome.runtime.MessageSender,
+        vi.fn()
+      )
+
+      expect(mockAlarms.clear).toHaveBeenCalledWith('pomodoro-timer')
+    })
+  })
+
+  // ── SET_MODE ─────────────────────────────────────────────────────
+
+  describe('SET_MODE', () => {
+    it('changes the timer mode to break', async () => {
+      const sendResponse = vi.fn()
+      await handleMessage(
+        { type: 'SET_MODE', payload: { mode: 'break' } },
+        {} as chrome.runtime.MessageSender,
+        sendResponse
+      )
+
+      const { state } = sendResponse.mock.calls[0][0]
+      expect(state.mode).toBe('break')
+    })
+
+    it('changes the timer mode to work', async () => {
+      storageData['timerState'] = {
+        ...DEFAULT_TIMER_STATE,
+        mode: 'break',
+      }
+
+      const sendResponse = vi.fn()
+      await handleMessage(
+        { type: 'SET_MODE', payload: { mode: 'work' } },
+        {} as chrome.runtime.MessageSender,
+        sendResponse
+      )
+
+      const { state } = sendResponse.mock.calls[0][0]
+      expect(state.mode).toBe('work')
+    })
+
+    it('persists mode change to storage', async () => {
+      await handleMessage(
+        { type: 'SET_MODE', payload: { mode: 'break' } },
+        {} as chrome.runtime.MessageSender,
+        vi.fn()
+      )
+
+      const saved = storageData['timerState'] as TimerStorageState
+      expect(saved.mode).toBe('break')
+    })
+
+    it('preserves other state properties', async () => {
+      storageData['timerState'] = {
+        ...DEFAULT_TIMER_STATE,
+        duration: 50 * 60,
+        timeLeft: 30 * 60,
+      }
+
+      const sendResponse = vi.fn()
+      await handleMessage(
+        { type: 'SET_MODE', payload: { mode: 'break' } },
+        {} as chrome.runtime.MessageSender,
+        sendResponse
+      )
+
+      const { state } = sendResponse.mock.calls[0][0]
+      expect(state.duration).toBe(50 * 60)
+      expect(state.timeLeft).toBe(30 * 60)
+    })
+
+    it('defaults to current mode if payload.mode is undefined', async () => {
+      storageData['timerState'] = {
+        ...DEFAULT_TIMER_STATE,
+        mode: 'work',
+      }
+
+      const sendResponse = vi.fn()
+      await handleMessage(
+        { type: 'SET_MODE', payload: {} },
+        {} as chrome.runtime.MessageSender,
+        sendResponse
+      )
+
+      const { state } = sendResponse.mock.calls[0][0]
+      expect(state.mode).toBe('work')
+    })
+  })
+
+  // ── SET_DURATION ─────────────────────────────────────────────────
+
+  describe('SET_DURATION', () => {
+    it('sets a new duration and resets timeLeft', async () => {
+      const sendResponse = vi.fn()
+      await handleMessage(
+        { type: 'SET_DURATION', payload: { duration: 15 * 60 } },
+        {} as chrome.runtime.MessageSender,
+        sendResponse
+      )
+
+      const { state } = sendResponse.mock.calls[0][0]
+      expect(state.duration).toBe(15 * 60)
+      expect(state.timeLeft).toBe(15 * 60)
+    })
+
+    it('stops the timer', async () => {
+      storageData['timerState'] = {
+        ...DEFAULT_TIMER_STATE,
+        isRunning: true,
+        startTime: Date.now(),
+      }
+
+      const sendResponse = vi.fn()
+      await handleMessage(
+        { type: 'SET_DURATION', payload: { duration: 10 * 60 } },
+        {} as chrome.runtime.MessageSender,
+        sendResponse
+      )
+
+      const { state } = sendResponse.mock.calls[0][0]
+      expect(state.isRunning).toBe(false)
+      expect(state.startTime).toBeNull()
+    })
+
+    it('clears the chrome alarm', async () => {
+      await handleMessage(
+        { type: 'SET_DURATION', payload: { duration: 10 * 60 } },
+        {} as chrome.runtime.MessageSender,
+        vi.fn()
+      )
+
+      expect(mockAlarms.clear).toHaveBeenCalledWith('pomodoro-timer')
+    })
+
+    it('persists the new state to storage', async () => {
+      await handleMessage(
+        { type: 'SET_DURATION', payload: { duration: 45 * 60 } },
+        {} as chrome.runtime.MessageSender,
+        vi.fn()
+      )
+
+      const saved = storageData['timerState'] as TimerStorageState
+      expect(saved.duration).toBe(45 * 60)
+      expect(saved.timeLeft).toBe(45 * 60)
+    })
+
+    it('defaults to current duration if payload.duration is undefined', async () => {
+      storageData['timerState'] = {
+        ...DEFAULT_TIMER_STATE,
+        duration: 50 * 60,
+      }
+
+      const sendResponse = vi.fn()
+      await handleMessage(
+        { type: 'SET_DURATION', payload: {} },
+        {} as chrome.runtime.MessageSender,
+        sendResponse
+      )
+
+      const { state } = sendResponse.mock.calls[0][0]
+      expect(state.duration).toBe(50 * 60)
+      expect(state.timeLeft).toBe(50 * 60)
+    })
+  })
+
+  // ── Unknown message type ─────────────────────────────────────────
+
+  describe('unknown message type', () => {
+    it('responds with current state for unknown message type', async () => {
+      const sendResponse = vi.fn()
+      await handleMessage(
+        { type: 'UNKNOWN_TYPE' as never },
+        {} as chrome.runtime.MessageSender,
+        sendResponse
+      )
+
+      expect(sendResponse).toHaveBeenCalledTimes(1)
+      const { state } = sendResponse.mock.calls[0][0]
+      expect(state).toEqual(DEFAULT_TIMER_STATE)
+    })
+  })
+
+  // ── sendResponse always called ───────────────────────────────────
+
+  describe('sendResponse contract', () => {
+    it('always calls sendResponse exactly once for GET_STATE', async () => {
+      const sendResponse = vi.fn()
+      await handleMessage(
+        { type: 'GET_STATE' },
+        {} as chrome.runtime.MessageSender,
+        sendResponse
+      )
+      expect(sendResponse).toHaveBeenCalledTimes(1)
+    })
+
+    it('always calls sendResponse exactly once for START', async () => {
+      const sendResponse = vi.fn()
+      await handleMessage(
+        { type: 'START' },
+        {} as chrome.runtime.MessageSender,
+        sendResponse
+      )
+      expect(sendResponse).toHaveBeenCalledTimes(1)
+    })
+
+    it('always calls sendResponse exactly once for PAUSE', async () => {
+      const sendResponse = vi.fn()
+      await handleMessage(
+        { type: 'PAUSE' },
+        {} as chrome.runtime.MessageSender,
+        sendResponse
+      )
+      expect(sendResponse).toHaveBeenCalledTimes(1)
+    })
+
+    it('always calls sendResponse exactly once for RESET', async () => {
+      const sendResponse = vi.fn()
+      await handleMessage(
+        { type: 'RESET' },
+        {} as chrome.runtime.MessageSender,
+        sendResponse
+      )
+      expect(sendResponse).toHaveBeenCalledTimes(1)
+    })
+
+    it('always calls sendResponse exactly once for SET_MODE', async () => {
+      const sendResponse = vi.fn()
+      await handleMessage(
+        { type: 'SET_MODE', payload: { mode: 'break' } },
+        {} as chrome.runtime.MessageSender,
+        sendResponse
+      )
+      expect(sendResponse).toHaveBeenCalledTimes(1)
+    })
+
+    it('always calls sendResponse exactly once for SET_DURATION', async () => {
+      const sendResponse = vi.fn()
+      await handleMessage(
+        { type: 'SET_DURATION', payload: { duration: 10 * 60 } },
+        {} as chrome.runtime.MessageSender,
+        sendResponse
+      )
+      expect(sendResponse).toHaveBeenCalledTimes(1)
+    })
+
+    it('response always contains a state property', async () => {
+      const sendResponse = vi.fn()
+      await handleMessage(
+        { type: 'GET_STATE' },
+        {} as chrome.runtime.MessageSender,
+        sendResponse
+      )
+
+      const response = sendResponse.mock.calls[0][0]
+      expect(response).toHaveProperty('state')
+      expect(response.state).toHaveProperty('duration')
+      expect(response.state).toHaveProperty('timeLeft')
+      expect(response.state).toHaveProperty('isRunning')
+      expect(response.state).toHaveProperty('startTime')
+      expect(response.state).toHaveProperty('mode')
+    })
   })
 })
