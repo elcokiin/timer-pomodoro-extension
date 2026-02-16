@@ -11,6 +11,23 @@ export default defineConfig({
       '@': path.resolve(__dirname, './src'),
     },
   },
+  build: {
+    rollupOptions: {
+      input: {
+        popup: path.resolve(__dirname, 'index.html'),
+        background: path.resolve(__dirname, 'src/background/index.ts'),
+      },
+      output: {
+        entryFileNames: (chunkInfo) => {
+          // Place the background service worker at the dist root as background.js
+          if (chunkInfo.name === 'background') {
+            return 'background.js'
+          }
+          return 'assets/[name]-[hash].js'
+        },
+      },
+    },
+  },
   test: {
     globals: true,
     environment: 'jsdom',

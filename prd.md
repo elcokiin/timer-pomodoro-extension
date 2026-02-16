@@ -21,7 +21,7 @@ Phase 4: UI Development (shadcn/ui)
 Phase 5: Completion Logic & Polish
 - [x] Implement the "Rest/Break" popup: A shadcn Dialog that appears automatically when the timer finishes.
 - [x] Add "Active Task" display: Show the currently selected task name above the timer.
-- [ ] Configure vite.config.ts for multi-page build (generating popup.html and background.js in the /dist folder).
+- [x] Configure vite.config.ts for multi-page build (generating popup.html and background.js in the /dist folder).
 Phase 6: Final Validation
 - [ ] Verify that the timer continues to count down even when the extension popup is closed.
 - [ ] Ensure tasks remain saved after a browser restart.

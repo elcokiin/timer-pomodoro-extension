@@ -370,3 +370,35 @@
     - Timer countdown (25:00) visible in Focus tab by default
 - All 380 tests passing (19 new + 361 existing)
 - Linting passes cleanly (0 errors, 2 pre-existing warnings from shadcn components)
+
+## 2026-02-15: Phase 5 - Task 3: Configure vite.config.ts for multi-page build
+- Updated `vite.config.ts` with `build.rollupOptions` for multi-page Chrome Extension output:
+  - `input`: two entry points:
+    - `popup`: `index.html` (the popup UI with React app)
+    - `background`: `src/background/index.ts` (the service worker with timer logic)
+  - `output.entryFileNames`: custom function that routes the `background` chunk to `background.js` at the dist root, and all other entries to `assets/[name]-[hash].js`
+- Build output structure in `dist/`:
+  - `index.html` - popup HTML page with `<script type="module">` referencing bundled popup JS
+  - `background.js` - standalone background service worker bundle (no React, no DOM)
+  - `assets/popup-[hash].js` - bundled popup React application
+  - `assets/popup-[hash].css` - bundled popup styles (Tailwind CSS)
+  - `manifest.json` - copied from `public/`, references `index.html` and `background.js` correctly
+  - `icons/` - extension icons copied from `public/icons/`
+- Background service worker is built as a standalone bundle:
+  - Contains only timer logic, chrome.alarms, chrome.storage, chrome.runtime, chrome.notifications
+  - Does NOT include React, ReactDOM, or any UI code
+  - Minified and self-contained for Chrome Extension service worker context
+- Verified `dist/manifest.json` references align with build output:
+  - `action.default_popup: "index.html"` -> `dist/index.html` exists
+  - `background.service_worker: "background.js"` -> `dist/background.js` exists
+  - `icons` -> `dist/icons/icon-{16,48,128}.png` exist
+- Wrote 34 new tests in `src/test/vite-build.test.ts` covering:
+  - vite.config.ts structure (9 tests): file exists, rollupOptions/input defined, popup entry, background entry, input keys, entryFileNames config, background.js routing, assets routing
+  - Build output - popup (5 tests): index.html exists, script tag, JS reference, CSS reference, root div
+  - Build output - background (6 tests): background.js exists, not empty, contains timer logic, chrome.alarms, chrome.storage, chrome.runtime, no React imports
+  - Build output - assets (4 tests): assets/ exists, JS files, CSS files, hashed names
+  - Build output - static assets (5 tests): manifest.json copied, popup reference, service worker reference, icons directory, icon files
+  - Build output - loadable extension (3 tests): all manifest references exist, no unexpected HTML files, background.js at root not in assets/
+  - Tests use `it.skipIf(!distExists)` for graceful handling when dist/ is absent
+- All 455 tests passing (34 new + 421 existing)
+- Linting passes cleanly (0 errors, 2 pre-existing warnings from shadcn components)
