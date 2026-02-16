@@ -210,3 +210,33 @@
     - Loading state: loading indicator shown before fetch, "Loading" text content
 - All 274 tests passing (38 new + 236 existing)
 - Linting passes cleanly (0 errors, 2 pre-existing warnings from shadcn components)
+
+## 2026-02-15: Phase 4 - Task 2: Presets Section with clickable time presets and custom duration input
+- Created `src/components/PresetsSection.tsx` component:
+  - Three clickable preset buttons: 25m, 50m, 15m with Clock icons (lucide-react)
+  - Active preset is visually highlighted (default variant vs outline variant based on currentDuration)
+  - Custom duration input: number input with "Custom (min)" placeholder and "Set" button with Plus icon
+  - Custom input supports Enter key submission for convenience
+  - Validates custom input: rejects empty, zero, and negative values; floors decimal inputs
+  - Clears custom input field after successful submission
+  - All presets and custom input are disabled when timer is running (prevents mid-run duration changes)
+  - Uses shadcn `Button` and `Input` components for consistent UI
+- Added `setDuration` action to `src/hooks/useTimer.ts`:
+  - Sends `SET_DURATION` message with `{ duration: durationSeconds }` payload to background service worker
+  - Updates local state with response from background
+  - Stops polling (since SET_DURATION stops the timer in the background)
+- Integrated `PresetsSection` into `src/components/TimerView.tsx`:
+  - Renders below the timer controls
+  - Passes `currentDuration`, `isRunning`, and `onSetDuration` props from useTimer hook
+- Wrote 35 new tests in `src/test/presets-section.test.tsx` covering:
+  - useTimer Hook – setDuration (4 tests): export, SET_DURATION message with payload, state update, stops polling
+  - PresetsSection Component (24 tests):
+    - Rendering: section container, buttons container, three preset buttons, labels, custom section, input, submit button, "Set" text, placeholder, input type
+    - Preset clicks: 25m/50m/15m each call onSetDuration with correct seconds value
+    - Custom input: Set button submission, Enter key submission, clears input after submit, floors decimals
+    - Validation: empty input rejected, zero rejected, negative rejected
+    - Disabled state: preset buttons, custom input, submit button all disabled when running
+    - Active highlighting: current preset visually distinct from others
+  - TimerView integration (7 tests): renders presets section, renders preset buttons, renders custom input, sends SET_DURATION on preset click, updates countdown display, sends SET_DURATION for custom input, disables presets when running
+- All 309 tests passing (35 new + 274 existing)
+- Linting passes cleanly (0 errors, 2 pre-existing warnings from shadcn components)

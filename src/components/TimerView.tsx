@@ -2,6 +2,7 @@ import { Play, Pause, RotateCcw } from 'lucide-react'
 import { Button } from '@/components/ui/button'
 import { Progress } from '@/components/ui/progress'
 import { useTimer } from '@/hooks/useTimer'
+import { PresetsSection } from '@/components/PresetsSection'
 
 /**
  * Format seconds into MM:SS display string.
@@ -20,7 +21,7 @@ function formatTime(totalSeconds: number): string {
  * hook to get live state and dispatch commands.
  */
 export function TimerView() {
-  const { state, isLoading, start, pause, reset } = useTimer()
+  const { state, isLoading, start, pause, reset, setDuration } = useTimer()
 
   if (isLoading) {
     return (
@@ -92,6 +93,13 @@ export function TimerView() {
           Reset
         </Button>
       </div>
+
+      {/* Time presets */}
+      <PresetsSection
+        currentDuration={state.duration}
+        isRunning={state.isRunning}
+        onSetDuration={setDuration}
+      />
     </div>
   )
 }

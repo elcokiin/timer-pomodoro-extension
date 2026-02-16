@@ -100,5 +100,14 @@ export function useTimer() {
     stopPolling()
   }, [stopPolling])
 
-  return { state, isLoading, start, pause, reset }
+  const setDuration = useCallback(async (durationSeconds: number) => {
+    const newState = await sendTimerMessage({
+      type: 'SET_DURATION',
+      payload: { duration: durationSeconds },
+    })
+    setState(newState)
+    stopPolling()
+  }, [stopPolling])
+
+  return { state, isLoading, start, pause, reset, setDuration }
 }
