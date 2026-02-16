@@ -24,5 +24,5 @@ Phase 5: Completion Logic & Polish
 - [x] Configure vite.config.ts for multi-page build (generating popup.html and background.js in the /dist folder).
 Phase 6: Final Validation
 - [x] Verify that the timer continues to count down even when the extension popup is closed.
-- [ ] Ensure tasks remain saved after a browser restart.
+- [x] Ensure tasks remain saved after a browser restart.
 - [ ] Test the "Add Custom Time" functionality for edge cases (0 or negative numbers).

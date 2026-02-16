@@ -422,3 +422,39 @@
   - Storage persistence guarantees (3 tests): round-trip integrity, all fields persisted, startTime precision
 - All 489 tests passing (34 new + 455 existing)
 - Linting passes cleanly (0 errors, 2 pre-existing warnings from shadcn components)
+
+## 2026-02-15: Phase 6 - Task 2: Ensure tasks remain saved after a browser restart
+- Verified that the existing persistence architecture (`useChromeStorage` → `chrome.storage.local`) correctly preserves tasks across browser restarts
+- Task persistence relies on:
+  - `useChromeStorage('tasks', [])` reads stored tasks from `chrome.storage.local` on mount
+  - Every mutation (add, toggle, delete, select) immediately calls `chrome.storage.local.set()` to persist
+  - `chrome.storage.local` is persistent storage that survives browser restarts, extension reloads, and popup close/reopen cycles
+- Created `src/test/task-persistence-restart.test.tsx` with 28 comprehensive verification tests:
+  - useChromeStorage – Task Persistence Round-Trip (5 tests):
+    - Restores tasks from storage on mount, survives unmount+remount (simulated restart)
+    - Preserves completed state, isSelected state across restart
+    - Returns default empty array on fresh install (no stored data)
+  - useTasks Hook – Persistence After Restart (7 tests):
+    - Restores previously added tasks after unmount+remount
+    - Preserves toggled completion state, selected task state after restart
+    - Persists deletion across restart (deleted tasks stay deleted)
+    - Preserves task IDs across restart
+    - Can modify restored tasks after restart (add new tasks to existing list)
+    - Preserves multiple task states simultaneously (completed, selected, plain) across restart
+  - TaskList Component – Persistence After Restart (8 tests):
+    - Renders tasks from storage on mount (simulated restart)
+    - Shows completed styling (line-through) for persisted completed tasks
+    - Shows selected styling (bg-muted/70) for persisted selected tasks
+    - Does not show empty state when tasks exist in storage
+    - Shows empty state on fresh install (no stored tasks)
+    - Tasks added via UI persist and reappear after remount
+    - Checkbox state preserved after component remount
+    - Task count persists correctly across multiple restarts
+  - Storage Persistence Guarantees (8 tests):
+    - chrome.storage.local.set called on add, toggle, delete, select operations
+    - chrome.storage.local.get called with 'tasks' key on mount
+    - Storage data structure preserves all Task fields (id, text, completed, isSelected)
+    - Multiple rapid mutations all persist to storage
+    - External storage changes (from background script) update task list
+- All 517 tests passing (28 new + 489 existing)
+- Linting passes cleanly (0 errors, 2 pre-existing warnings from shadcn components)
