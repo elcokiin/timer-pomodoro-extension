@@ -12,7 +12,7 @@ Phase 3: State Management & Storage Hooks
 - [x] Define TypeScript interfaces for:
 Task { id: string, text: string, completed: boolean, isSelected: boolean }
 TimerState { mode: 'work' | 'break', timeLeft: number, isRunning: boolean }
-- [ ] Create a custom React hook useChromeStorage to handle real-time updates between the extension UI and chrome.storage.local.
+- [x] Create a custom React hook useChromeStorage to handle real-time updates between the extension UI and chrome.storage.local.
 Phase 4: UI Development (shadcn/ui)
 - [ ] Timer View: Build a centered countdown display with a shadcn Progress bar and control buttons (Start, Pause, Reset).
 - [ ] Presets Section: Implement a list of clickable time presets (25m, 50m, 15m) and a custom duration input.

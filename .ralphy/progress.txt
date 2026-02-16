@@ -152,3 +152,26 @@
   - Compatibility: TimerStorageState can be narrowed to TimerState (1 test)
 - All 205 tests passing (18 new + 187 existing)
 - Linting passes cleanly (0 errors, 2 pre-existing warnings from shadcn components)
+
+## 2026-02-15: Phase 3 - Task 2: Create useChromeStorage custom React hook
+- Hook already existed in `src/hooks/useChromeStorage.ts` (implemented in prior session)
+- Fixed lint error: moved `valueRef.current = value` from render-time to a `useEffect` to comply with `react-hooks/refs` rule
+- Hook provides generic two-way sync between React UI and `chrome.storage.local`:
+  - Reads initial value from `chrome.storage.local.get(key)` on mount
+  - Listens to `chrome.storage.onChanged` for external updates (e.g. from background script)
+  - Provides `setValue` function that optimistically updates local state and persists to storage
+  - Supports callback updater form `setValue(prev => newVal)` via `useRef` for latest value
+  - Returns `[value, setValue, isLoading]` tuple
+  - Cleans up listeners on unmount, cancels stale reads on key change
+- Wrote 31 new tests in `src/test/useChromeStorage.test.ts` covering:
+  - Module export (1 test)
+  - Initial state: defaultValue, isLoading=true, return tuple shape (3 tests)
+  - Reading from storage: calls get with key, updates on stored data, keeps default when undefined, sets isLoading false, objects, arrays, booleans, numbers (8 tests)
+  - Writing to storage: calls set, optimistic update, callback updater, objects, arrays (5 tests)
+  - External changes: registers onChanged listener, updates on external change, ignores other keys, ignores non-local areas, removes listener on unmount (5 tests)
+  - Cleanup: cancels pending reads on unmount (1 test)
+  - Key change: re-reads storage when key changes (1 test)
+  - Return value stability: setValue reference stable across re-renders (1 test)
+  - Edge cases: null, empty string, zero, false values from storage, sequential setValue, callback updater latest value (6 tests)
+- All 236 tests passing (31 new + 205 existing)
+- Linting passes cleanly (0 errors, 2 pre-existing warnings from shadcn components)
