@@ -1,14 +1,31 @@
-import { Timer, ListTodo } from 'lucide-react'
+import { Timer, ListTodo, Github } from 'lucide-react'
 import { Tabs, TabsList, TabsTrigger, TabsContent } from '@/components/ui/tabs'
+import { Button } from '@/components/ui/button'
 import { TimerView } from './components/TimerView'
 import { TaskList } from './components/TaskList'
 
 function App() {
+  const handleGithubClick = () => {
+    window.open('https://github.com/elcokiin/timer-pomodoro-extension', '_blank')
+  }
+
   return (
     <div className="app">
-      <h1 className="text-foreground text-center text-lg font-semibold pt-4">
-        Pomodoro Timer
-      </h1>
+      <div className="relative pt-4">
+        <h1 className="text-foreground text-center text-lg font-semibold">
+          Pomodoro Timer
+        </h1>
+        <Button
+          variant="ghost"
+          size="icon"
+          className="absolute right-0 top-3 size-8 text-muted-foreground hover:text-foreground"
+          onClick={handleGithubClick}
+          data-testid="github-link"
+          aria-label="View source on GitHub"
+        >
+          <Github className="size-4" />
+        </Button>
+      </div>
       <p className="text-muted-foreground text-center text-sm mb-2">
         Focus. Work. Rest. Repeat.
       </p>

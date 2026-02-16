@@ -1,7 +1,7 @@
 {
   "manifest_version": 3,
   "name": "Pomodoro Task Timer",
-  "description": "A focus timer with task management. Work. Rest. Repeat.",
+  "description": "Pomodoro focus timer with task management. Boost productivity with work sessions, break reminders, and a built-in to-do list.",
   "version": "0.1.0",
   "permissions": [
     "alarms",
