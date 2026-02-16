@@ -130,3 +130,25 @@
   - sendResponse contract: called exactly once for each message type, response always contains full state shape
 - All 187 tests passing (35 new + 152 existing)
 - Linting passes cleanly (0 errors, 2 pre-existing warnings from shadcn components)
+
+## 2026-02-15: Phase 3 - Task 1: Define TypeScript interfaces for Task and TimerState
+- Created `src/types/index.ts` with two exported interfaces:
+  - `Task { id: string, text: string, completed: boolean, isSelected: boolean }`:
+    - Represents a single task in the task list
+    - `id`: unique identifier for the task
+    - `text`: user-visible task description
+    - `completed`: whether the task has been marked done
+    - `isSelected`: whether this task is the "active" task shown above the timer
+  - `TimerState { mode: 'work' | 'break', timeLeft: number, isRunning: boolean }`:
+    - UI-facing timer state (lightweight projection of `TimerStorageState` from background script)
+    - `mode`: current timer mode (work session or break)
+    - `timeLeft`: seconds remaining on the countdown
+    - `isRunning`: whether the timer is actively counting down
+- Removed `.gitkeep` placeholder from `src/types/` (now has real content)
+- Wrote 18 new tests in `src/test/types.test.ts` covering:
+  - Task interface: id/text/completed/isSelected property types, completed task, selected task, key count validation (7 tests)
+  - TimerState interface: mode property, work/break values, timeLeft type and zero edge case, isRunning type and true value, key count validation (8 tests)
+  - Module exports: Task and TimerState compilation verification (2 tests)
+  - Compatibility: TimerStorageState can be narrowed to TimerState (1 test)
+- All 205 tests passing (18 new + 187 existing)
+- Linting passes cleanly (0 errors, 2 pre-existing warnings from shadcn components)

@@ -9,7 +9,7 @@ Phase 2: The Core Engine (Background Script)
 - [x] Setup a listener to trigger a chrome.notifications alert when the countdown reaches zero.
 - [x] Create a message listener to sync data between the popup and the background script.
 Phase 3: State Management & Storage Hooks
-- [ ] Define TypeScript interfaces for:
+- [x] Define TypeScript interfaces for:
 Task { id: string, text: string, completed: boolean, isSelected: boolean }
 TimerState { mode: 'work' | 'break', timeLeft: number, isRunning: boolean }
 - [ ] Create a custom React hook useChromeStorage to handle real-time updates between the extension UI and chrome.storage.local.
