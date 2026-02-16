@@ -39,14 +39,23 @@ function sendTimerMessage(message: TimerMessage): Promise<TimerStorageState> {
 export function useTimer() {
   const [state, setState] = useState<TimerStorageState>(DEFAULT_STATE)
   const [isLoading, setIsLoading] = useState(true)
+  const [justFinished, setJustFinished] = useState(false)
   const intervalRef = useRef<ReturnType<typeof setInterval> | null>(null)
+  const prevRunningRef = useRef(false)
 
   // ── Polling helpers ─────────────────────────────────────────────
 
   const startPolling = useCallback(() => {
     if (intervalRef.current !== null) return
     intervalRef.current = setInterval(() => {
-      sendTimerMessage({ type: 'GET_STATE' }).then(setState)
+      sendTimerMessage({ type: 'GET_STATE' }).then((newState) => {
+        // Detect transition: was running, now finished
+        if (prevRunningRef.current && !newState.isRunning && newState.timeLeft <= 0) {
+          setJustFinished(true)
+        }
+        prevRunningRef.current = newState.isRunning
+        setState(newState)
+      })
     }, 1000)
   }, [])
 
@@ -69,6 +78,7 @@ export function useTimer() {
       (response: TimerMessageResponse) => {
         if (cancelled) return
         setState(response.state)
+        prevRunningRef.current = response.state.isRunning
         setIsLoading(false)
         if (response.state.isRunning) startPolling()
       }
@@ -109,5 +119,29 @@ export function useTimer() {
     stopPolling()
   }, [stopPolling])
 
-  return { state, isLoading, start, pause, reset, setDuration }
+  /**
+   * Switch to a new mode, set the appropriate duration, and start the timer.
+   * Used by the Rest/Break dialog to transition between work and break sessions.
+   */
+  const switchModeAndStart = useCallback(async (mode: 'work' | 'break', duration: number) => {
+    // 1. Set mode
+    await sendTimerMessage({ type: 'SET_MODE', payload: { mode } })
+    // 2. Set duration (also resets timeLeft)
+    await sendTimerMessage({ type: 'SET_DURATION', payload: { duration } })
+    // 3. Start
+    const newState = await sendTimerMessage({ type: 'START' })
+    setState(newState)
+    prevRunningRef.current = newState.isRunning
+    if (newState.isRunning) startPolling()
+  }, [startPolling])
+
+  /**
+   * Clear the "just finished" flag. Called by the UI after acknowledging
+   * (dismissing or acting on) the Rest/Break dialog.
+   */
+  const clearJustFinished = useCallback(() => {
+    setJustFinished(false)
+  }, [])
+
+  return { state, isLoading, start, pause, reset, setDuration, switchModeAndStart, justFinished, clearJustFinished }
 }

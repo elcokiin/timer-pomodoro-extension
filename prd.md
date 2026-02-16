@@ -19,7 +19,7 @@ Phase 4: UI Development (shadcn/ui)
 - [x] Task List: Create a ScrollArea containing a list of tasks with Checkbox toggles and a "Delete" action.
 - [x] Layout: Wrap everything in a shadcn Tabs component to switch between "Focus" and "Tasks".
 Phase 5: Completion Logic & Polish
-- [ ] Implement the "Rest/Break" popup: A shadcn Dialog that appears automatically when the timer finishes.
+- [x] Implement the "Rest/Break" popup: A shadcn Dialog that appears automatically when the timer finishes.
 - [ ] Add "Active Task" display: Show the currently selected task name above the timer.
 - [ ] Configure vite.config.ts for multi-page build (generating popup.html and background.js in the /dist folder).
 Phase 6: Final Validation

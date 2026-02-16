@@ -3,6 +3,7 @@ import { Button } from '@/components/ui/button'
 import { Progress } from '@/components/ui/progress'
 import { useTimer } from '@/hooks/useTimer'
 import { PresetsSection } from '@/components/PresetsSection'
+import { RestBreakDialog } from '@/components/RestBreakDialog'
 
 /**
  * Format seconds into MM:SS display string.
@@ -21,7 +22,9 @@ function formatTime(totalSeconds: number): string {
  * hook to get live state and dispatch commands.
  */
 export function TimerView() {
-  const { state, isLoading, start, pause, reset, setDuration } = useTimer()
+  const { state, isLoading, start, pause, reset, setDuration, switchModeAndStart, justFinished, clearJustFinished } = useTimer()
+
+  const isFinished = state.timeLeft <= 0 && !state.isRunning
 
   if (isLoading) {
     return (
@@ -33,8 +36,6 @@ export function TimerView() {
 
   const progressPercent =
     state.duration > 0 ? (state.timeLeft / state.duration) * 100 : 0
-
-  const isFinished = state.timeLeft <= 0 && !state.isRunning
 
   return (
     <div data-testid="timer-view" className="flex flex-col items-center gap-6 py-6">
@@ -99,6 +100,17 @@ export function TimerView() {
         currentDuration={state.duration}
         isRunning={state.isRunning}
         onSetDuration={setDuration}
+      />
+
+      {/* Rest/Break dialog – appears automatically when timer finishes */}
+      <RestBreakDialog
+        open={justFinished}
+        mode={state.mode}
+        onDismiss={clearJustFinished}
+        onSwitchModeAndStart={(mode, duration) => {
+          clearJustFinished()
+          switchModeAndStart(mode, duration)
+        }}
       />
     </div>
   )

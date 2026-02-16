@@ -176,6 +176,44 @@
 - All 236 tests passing (31 new + 205 existing)
 - Linting passes cleanly (0 errors, 2 pre-existing warnings from shadcn components)
 
+## 2026-02-15: Phase 5 - Task 1: Implement the Rest/Break popup dialog
+- Created `src/components/RestBreakDialog.tsx` component using shadcn Dialog:
+  - Appears automatically when the timer finishes (transitions from running to timeLeft=0)
+  - Work mode finished: shows "Work session complete!" title, "Start Break" action button (5-minute break)
+  - Break mode finished: shows "Break is over!" title, "Start Work" action button (25-minute work session)
+  - Descriptive messages: work mode encourages taking a break, break mode encourages refocusing
+  - Icon indicator: Coffee icon for work completion, BrainCircuit icon for break completion
+  - "Dismiss" button to close the dialog without starting a new session
+  - "Start Break"/"Start Work" action button switches mode, sets duration, and starts timer
+  - Does NOT show on initial popup load if timer was already finished (only on live transitions)
+- Added `switchModeAndStart(mode, duration)` to `src/hooks/useTimer.ts`:
+  - Sequences SET_MODE, SET_DURATION, and START messages to background service worker
+  - Atomically transitions between work and break sessions
+- Added `justFinished` / `clearJustFinished` to `src/hooks/useTimer.ts`:
+  - Detects running-to-finished transition via polling (avoids lint-violating setState in useEffect)
+  - `justFinished` boolean flag set when polling detects `isRunning` went from true to false with `timeLeft <= 0`
+  - `clearJustFinished()` resets the flag, called by UI on dismiss or action
+  - `prevRunningRef` tracks previous running state to detect transitions
+- Updated `src/components/TimerView.tsx` to integrate `RestBreakDialog`:
+  - Passes `justFinished` as dialog open state
+  - Passes `clearJustFinished` as dismiss handler
+  - On action: clears finished flag and calls `switchModeAndStart`
+- Wrote 32 new tests in `src/test/rest-break-dialog.test.tsx` covering:
+  - useTimer Hook – switchModeAndStart (7 tests):
+    - Export, message sequence (SET_MODE, SET_DURATION, START), SET_MODE payload, SET_DURATION payload, START message, state update, work mode switch
+  - RestBreakDialog Component (14 tests):
+    - Rendering: open/closed states, icon container, Dismiss button, action button
+    - Work mode: title, description, "Start Break" label
+    - Break mode: title, description, "Start Work" label
+    - Interactions: dismiss callback, action callback with break mode (5min), action callback with work mode (25min)
+  - TimerView Integration (11 tests):
+    - Dialog appearance on timer finish (work mode), correct title for work/break completion
+    - Dismiss closes dialog, action sends SET_MODE+SET_DURATION+START, action closes dialog
+    - No dialog when running, no dialog when paused, no dialog on initial load with finished state
+    - "Start Break"/"Start Work" button text for work/break mode completion
+- All 412 tests passing (32 new + 380 existing)
+- Linting passes cleanly (0 errors, 2 pre-existing warnings from shadcn components)
+
 ## 2026-02-15: Phase 4 - Task 1: Timer View with countdown display, Progress bar, and control buttons
 - Created `src/hooks/useTimer.ts` custom React hook for background communication:
   - `sendTimerMessage()`: typed wrapper around `chrome.runtime.sendMessage` returning `TimerStorageState`
