@@ -17,7 +17,7 @@ Phase 4: UI Development (shadcn/ui)
 - [x] Timer View: Build a centered countdown display with a shadcn Progress bar and control buttons (Start, Pause, Reset).
 - [x] Presets Section: Implement a list of clickable time presets (25m, 50m, 15m) and a custom duration input.
 - [x] Task List: Create a ScrollArea containing a list of tasks with Checkbox toggles and a "Delete" action.
-- [ ] Layout: Wrap everything in a shadcn Tabs component to switch between "Focus" and "Tasks".
+- [x] Layout: Wrap everything in a shadcn Tabs component to switch between "Focus" and "Tasks".
 Phase 5: Completion Logic & Polish
 - [ ] Implement the "Rest/Break" popup: A shadcn Dialog that appears automatically when the timer finishes.
 - [ ] Add "Active Task" display: Show the currently selected task name above the timer.

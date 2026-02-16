@@ -284,3 +284,28 @@
     - Multiple tasks: renders many tasks, deleting one preserves others
 - All 361 tests passing (52 new + 309 existing)
 - Linting passes cleanly (0 errors, 2 pre-existing warnings from shadcn components)
+
+## 2026-02-15: Phase 4 - Task 4: Tabs layout to switch between Focus and Tasks views
+- Updated `src/App.tsx` to wrap TimerView and TaskList in a shadcn `Tabs` component:
+  - Imported `Tabs`, `TabsList`, `TabsTrigger`, `TabsContent` from `@/components/ui/tabs`
+  - Imported `TaskList` from `./components/TaskList`
+  - Added `Timer` and `ListTodo` lucide-react icons for tab triggers
+  - Two tabs: "Focus" (default active) containing `<TimerView />`, and "Tasks" containing `<TaskList />`
+  - `defaultValue="focus"` ensures the timer view is shown on popup open
+  - Added `data-testid` attributes to tabs-list, tab-focus, tab-tasks, tab-content-focus, tab-content-tasks
+  - Full-width tabs list with flex-1 triggers for equal sizing
+  - Added `mb-2` to tagline for spacing between header and tabs
+- Updated `src/test/App.test.tsx` with comprehensive Tabs layout tests:
+  - Extended chrome mock to include `chrome.storage` (local.get, local.set, onChanged) for TaskList/useChromeStorage compatibility
+  - Installed `@testing-library/user-event` for Radix UI tab interaction testing (fireEvent.click doesn't trigger Radix pointer events)
+  - 19 new tests covering:
+    - Tab rendering: tabs list, Focus trigger, Tasks trigger, text labels
+    - Default state: Focus tab active, Tasks tab inactive, Focus content panel visible, TimerView rendered, TaskList not rendered
+    - Tab switching: clicking Tasks activates it, deactivates Focus, renders TaskList, hides TimerView
+    - Round-trip: switching to Tasks and back to Focus restores TimerView
+    - Tasks tab content panel rendered when active
+    - Both triggers always rendered regardless of active tab
+    - TaskList empty state visible in Tasks tab
+    - Timer countdown (25:00) visible in Focus tab by default
+- All 380 tests passing (19 new + 361 existing)
+- Linting passes cleanly (0 errors, 2 pre-existing warnings from shadcn components)
