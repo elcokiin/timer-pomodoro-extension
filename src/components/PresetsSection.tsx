@@ -32,7 +32,10 @@ export function PresetsSection({
   const handleCustomSubmit = () => {
     const parsed = Number(customMinutes)
     if (!Number.isFinite(parsed) || parsed <= 0) return
-    onSetDuration(Math.floor(parsed) * 60)
+    const floored = Math.floor(parsed)
+    // Reject values that floor to 0 (e.g. 0.5)
+    if (floored <= 0) return
+    onSetDuration(floored * 60)
     setCustomMinutes('')
   }
 

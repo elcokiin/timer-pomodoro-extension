@@ -321,7 +321,10 @@ export async function handleMessage(
 
     case 'SET_DURATION': {
       const current = await getTimerState()
-      const newDuration = message.payload?.duration ?? current.duration
+      const rawDuration = message.payload?.duration ?? current.duration
+      // Guard against invalid durations (0, negative, NaN, Infinity, decimals < 1)
+      const floored = Number.isFinite(rawDuration) ? Math.floor(rawDuration) : 0
+      const newDuration = floored > 0 ? floored : current.duration
       state = {
         ...current,
         duration: newDuration,

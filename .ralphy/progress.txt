@@ -458,3 +458,41 @@
     - External storage changes (from background script) update task list
 - All 517 tests passing (28 new + 489 existing)
 - Linting passes cleanly (0 errors, 2 pre-existing warnings from shadcn components)
+
+## 2026-02-15: Phase 6 - Task 3: Test "Add Custom Time" functionality for edge cases (0 or negative numbers)
+- Added defensive validation at three layers to reject invalid custom time durations:
+  1. **Background script** (`src/background/index.ts` – `SET_DURATION` handler):
+     - Floors raw duration via `Math.floor()` before validation
+     - Rejects durations where the floored value is `<= 0` (catches 0, negatives, and decimals < 1 like 0.3)
+     - Rejects `NaN` and `Infinity` via `Number.isFinite()` check
+     - Falls back to the current stored duration when input is invalid (safe no-op)
+  2. **useTimer hook** (`src/hooks/useTimer.ts` – `setDuration()`):
+     - Guards at the UI layer: rejects `<= 0`, `NaN`, `Infinity` before sending message
+     - Floors decimal values before sending to background
+     - Returns early (no-op) for invalid durations, preventing unnecessary message overhead
+  3. **PresetsSection component** (`src/components/PresetsSection.tsx` – `handleCustomSubmit()`):
+     - Added post-floor validation: `Math.floor(parsed)` is checked for `<= 0` after flooring
+     - Fixes edge case where `0.5` would pass `> 0` check but floor to `0`, resulting in a 0-second timer
+     - Input is NOT cleared when submission is rejected, preserving user's input for correction
+- Created `src/test/custom-time-edge-cases.test.tsx` with 39 comprehensive tests:
+  - Background Script – SET_DURATION edge case validation (13 tests):
+    - Rejects: zero, negative, large negative, NaN, Infinity, -Infinity, decimals that floor to 0 (0.3)
+    - Accepts: valid positive, 1 second minimum, large duration (2 hours)
+    - Floors decimal durations; stops timer and clears alarm even for invalid input
+    - Persists fallback state to storage for invalid durations
+  - useTimer Hook – setDuration edge case validation (6 tests):
+    - Does not send message for: zero, negative, NaN, Infinity
+    - Sends message for valid positive duration
+    - Floors decimal durations before sending
+  - PresetsSection Component – Custom Time edge cases (15 tests):
+    - Rejects via button: zero (disabled), negative (disabled)
+    - Rejects via Enter: zero, negative, empty, decimals 0.5/0.1/0.99 (all floor to 0)
+    - Accepts: 1 minute minimum, decimal >= 1 (1.9 → 1 min), large number (999 min)
+    - Input preservation: not cleared on rejection (zero, negative); cleared on success
+    - Submit button disabled for empty input
+  - TimerView – Custom Time edge case integration (5 tests):
+    - No SET_DURATION sent for zero/negative custom input
+    - SET_DURATION sent for valid custom input
+    - Timer display unchanged for zero/negative input (stays at 25:00)
+- All 556 tests passing (39 new + 517 existing)
+- Linting passes cleanly (0 errors, 2 pre-existing warnings from shadcn components)

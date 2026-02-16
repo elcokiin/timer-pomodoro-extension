@@ -111,9 +111,11 @@ export function useTimer() {
   }, [stopPolling])
 
   const setDuration = useCallback(async (durationSeconds: number) => {
+    // Guard against invalid durations at the UI layer
+    if (!Number.isFinite(durationSeconds) || durationSeconds <= 0) return
     const newState = await sendTimerMessage({
       type: 'SET_DURATION',
-      payload: { duration: durationSeconds },
+      payload: { duration: Math.floor(durationSeconds) },
     })
     setState(newState)
     stopPolling()

@@ -25,4 +25,4 @@ Phase 5: Completion Logic & Polish
 Phase 6: Final Validation
 - [x] Verify that the timer continues to count down even when the extension popup is closed.
 - [x] Ensure tasks remain saved after a browser restart.
-- [ ] Test the "Add Custom Time" functionality for edge cases (0 or negative numbers).
+- [x] Test the "Add Custom Time" functionality for edge cases (0 or negative numbers).
